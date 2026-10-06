@@ -7,15 +7,12 @@ from pathlib import Path
 import yaml
 
 from src.config import Config, load_config
+from src.i18n import t
 from src.preprocessing.formats import SUPPORTED_SUFFIXES, suffix
 
 LANGUAGES = {"English": "en", "Español": "es", "Ελληνικά": "el"}
-# Languages installed on demand: (genitive, accusative, nominative, installer).
-OPTIONAL_LANGUAGES = {
-    "en": ("английского", "английский", "Английский", "INSTALL_ENGLISH.bat"),
-    "es": ("испанского", "испанский", "Испанский", "INSTALL_SPANISH.bat"),
-    "el": ("греческого", "греческий", "Греческий", "INSTALL_GREEK.bat"),
-}
+# Languages installed on demand and their installers.
+OPTIONAL_LANGUAGES = {"en": "INSTALL_ENGLISH.bat", "es": "INSTALL_SPANISH.bat", "el": "INSTALL_GREEK.bat"}
 
 
 def restore_empty_default(entry, variable, default):
@@ -50,11 +47,11 @@ def valid_numeric_edit(value, maximum, decimal=False, minimum=0):
 def build_config(root, source, language, options):
     source = Path(source).expanduser().resolve()
     if suffix(source) not in SUPPORTED_SUFFIXES or not source.is_file():
-        raise ValueError("Выберите существующий файл: " + ", ".join(s[1:].upper() for s in SUPPORTED_SUFFIXES) + ".")
+        raise ValueError(t("cfg.choose_file", formats=", ".join(s[1:].upper() for s in SUPPORTED_SUFFIXES)))
     if source.stat().st_size == 0:
-        raise ValueError("Выбранный файл пуст.")
+        raise ValueError(t("cfg.empty_file"))
     if language not in LANGUAGES.values():
-        raise ValueError("Выберите English, Español или Ελληνικά.")
+        raise ValueError(t("cfg.choose_language"))
     demo = root / "config" / f"demo_{language}.yaml"
     cfg = load_config(demo)
     cfg.cards.enabled = bool(options["cards"])
@@ -74,9 +71,9 @@ def build_config(root, source, language, options):
     if cfg.grammar.lexicon:
         cfg.grammar.lexicon = str((demo.parent / cfg.grammar.lexicon).resolve())
     if cfg.cards.enabled and not Path(cfg.cards.template).is_file():
-        raise ValueError("Не найден шаблон карточек. Восстановите ваш table.docx в корне приложения.")
+        raise ValueError(t("cfg.no_template"))
     if cfg.known_dictionary.enabled and not Path(cfg.known_dictionary.path).is_file():
-        raise ValueError("Не найден список известных слов. Отключите исключение известных слов.")
+        raise ValueError(t("cfg.no_known"))
     book = hashlib.sha256(str(source).encode()).hexdigest()[:12] + "-" + language
     cfg.paths.work = str(root / "data" / "work" / "gui" / book)
     cfg.paths.output = str(root / "data" / "output" / "gui" / book)

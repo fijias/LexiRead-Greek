@@ -6,6 +6,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from src.i18n import t
 from src.runtime import ROOT, configure_logging, prepare_environment
 
 
@@ -61,7 +62,7 @@ def main():
 
             messagebox.showerror(
                 "LexiRead Greek",
-                "Не удалось выполнить действие. Подробности: logs/lexiread.log.",
+                t("err.action_failed"),
                 parent=app,
             )
 
@@ -75,7 +76,7 @@ def main():
 
             ctypes.windll.user32.MessageBoxW(
                 None,
-                "Не удалось запустить LexiRead Greek. Запустите INSTALL.bat для восстановления установки.",
+                t("err.app_start"),
                 "LexiRead Greek",
                 0x10,
             )

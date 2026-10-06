@@ -48,3 +48,12 @@ def observations():
         )
         for i, (text, lemma, pos, morph, context) in enumerate(specs)
     ]
+
+
+@pytest.fixture(autouse=True)
+def russian_interface(monkeypatch):
+    """Messages in tests are asserted in Russian; never touch the user's saved settings."""
+    from src import i18n
+
+    monkeypatch.setenv(i18n.ENV, "ru")
+    monkeypatch.setattr(i18n, "_current", "ru")

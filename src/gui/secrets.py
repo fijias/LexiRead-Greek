@@ -4,6 +4,8 @@ import ctypes
 import os
 from ctypes import wintypes
 
+from src.i18n import t
+
 
 class Blob(ctypes.Structure):
     _fields_ = [("size", wintypes.DWORD), ("data", ctypes.POINTER(ctypes.c_ubyte))]
@@ -11,7 +13,7 @@ class Blob(ctypes.Structure):
 
 def _crypt(value, decrypt=False):
     if os.name != "nt":
-        raise OSError("Сохранение ключа поддерживается только в Windows; используйте ключ для этого запуска.")
+        raise OSError(t("api.windows_only"))
     crypt = ctypes.WinDLL("crypt32", use_last_error=True)
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     buffer = ctypes.create_string_buffer(value)

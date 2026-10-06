@@ -22,6 +22,7 @@ from src.config import load_config
 from src.gui.configuration import LANGUAGES, OPTIONAL_LANGUAGES, build_config, save_config, valid_numeric_edit, restore_empty_default
 from src.gui.controller import Controller
 from src.gui.secrets import load_key, save_key
+from src.i18n import get_language, help_text, language_forms, set_language, t
 from src.languages.installation import language_is_installed
 from src.preprocessing.formats import SUPPORTED_SUFFIXES
 
@@ -43,12 +44,17 @@ THEME = {
     "radius": 8,
     "mini_radius": 8,
     "window_width": 572,
-    "window_height": 652,
+    "window_height": 668,
     "pad_x": 20,
     "button_height": 32,
     "control_height": 32,
     "upper_button_width": 134,
     "extended_button_width": 82,
+    # Главная кнопка «Начать анализ»: греческий синий логотипа, крупнее остальных кнопок.
+    "accent": "#0d5eaf",
+    "accent_hover": "#1a73d1",
+    "start_height": 48,
+    "start_font_size": 22,
 }
 
 
@@ -119,11 +125,11 @@ def _enable_entry_editing(entry):
         return "break"
 
     menu = tk.Menu(entry, tearoff=False)
-    menu.add_command(label="Вырезать", command=lambda: virtual_event("<<Cut>>"))
-    menu.add_command(label="Копировать", command=lambda: virtual_event("<<Copy>>"))
-    menu.add_command(label="Вставить", command=lambda: virtual_event("<<Paste>>"))
+    menu.add_command(label=t("menu.cut"), command=lambda: virtual_event("<<Cut>>"))
+    menu.add_command(label=t("menu.copy"), command=lambda: virtual_event("<<Copy>>"))
+    menu.add_command(label=t("menu.paste"), command=lambda: virtual_event("<<Paste>>"))
     menu.add_separator()
-    menu.add_command(label="Выделить всё", command=select_all)
+    menu.add_command(label=t("menu.select_all"), command=select_all)
 
     def show_menu(event):
         focus_input()
@@ -257,13 +263,38 @@ class MainWindow(ctk.CTk):
         self.after_idle(self._sync_taskbar)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.configure(fg_color=THEME["medium"])
-        # Верхняя панель: логотип, название и кнопки свернуть/закрыть.
+        # Верхняя панель: логотип, название, язык интерфейса и кнопки свернуть/закрыть.
         self._build_titlebar()
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
+
+        # Состояние формы живёт отдельно от виджетов: смена языка интерфейса пересоздаёт виджеты.
+        self.source = ctk.StringVar()
+        self.source_path = None
+        self._setting_source = False
+        self.source.trace_add("write", self._source_text_changed)
+        self.language = ctk.StringVar(value="Ελληνικά")
+        self._previous_language = "Ελληνικά"
+        self.cards, self.machine, self.known, self.ipa = [ctk.BooleanVar() for _ in range(4)]
+        self.coverage, self.specificity, self.occurrences = [ctk.StringVar() for _ in range(3)]
+        self.key = ctk.StringVar(value=os.environ.get("OPENAI_API_KEY", ""))
+        if not self.key.get():
+            try:
+                self.key.set(load_key(root))
+            except OSError:
+                logging.getLogger(__name__).warning("Saved API key could not be decrypted for this account")
+        self._status = ("status.ready", {})
+        self._build_body()
+        self._set_source_path(self.root / "data" / "input" / "demo_el.txt")
+        self.defaults()
+        self._poll_id = self.after(100, self.poll)
+
+    def _build_body(self):
+        self.controls = []
         body = ctk.CTkFrame(self, fg_color=THEME["medium"], corner_radius=0)
         body.grid(row=1, column=0, sticky="nsew", padx=THEME["pad_x"], pady=(4, 0))
         body.grid_columnconfigure(1, weight=1)
+        self._body = body
 
         # Номера строк основной сетки body:
         # 0 — заголовок; 1 — справка; 2 — выбор файла; 3 — язык;
@@ -273,28 +304,21 @@ class MainWindow(ctk.CTk):
         ctk.CTkLabel(body, text="LexiRead Greek", font=_font(THEME["font_semibold"], THEME["title_size"]), text_color=THEME["white"]).grid(
             row=0, column=0, columnspan=3, pady=(4, 10)
         )
-        help_button = self._button(body, "Справка", self.show_help, width=THEME["upper_button_width"])
+        help_button = self._button(body, t("btn.help"), self.show_help, width=THEME["upper_button_width"])
         help_button.grid(row=1, column=0, sticky="w", pady=(5, 5))
-        ctk.CTkLabel(body, text="Описание и инструкция по работе с приложением", font=_font(), text_color=THEME["white"]).grid(
+        ctk.CTkLabel(body, text=t("lbl.help"), font=_font(), text_color=THEME["white"]).grid(
             row=1, column=1, columnspan=2, sticky="w", padx=(16, 0)
         )
 
-        # Выбор TXT-файла: кнопка, поле с путём и выпадающий список языка.
-        browse = self._button(body, "Выберите файл", self.browse, width=THEME["upper_button_width"])
+        # Выбор файла: кнопка, поле с путём и выпадающий список языка.
+        browse = self._button(body, t("btn.browse"), self.browse, width=THEME["upper_button_width"])
         browse.grid(row=2, column=0, sticky="w", pady=(5, 5))
-        self.source = ctk.StringVar()
-        self.source_path = None
-        self._setting_source = False
-        self.source.trace_add("write", self._source_text_changed)
         self.file_entry = ctk.CTkEntry(body, textvariable=self.source, height=THEME["control_height"],
                                        fg_color=THEME["light"], border_color=THEME["most_dark"],
                                        border_width=THEME["border"], corner_radius=THEME["radius"],
                                        text_color=THEME["white"], font=_font())
         self.file_entry.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(12, 0), pady=(5, 5))
         self.controls += [self.file_entry, browse]
-        self._set_source_path(self.root / "data" / "input" / "demo_el.txt")
-        self.language = ctk.StringVar(value="Ελληνικά")
-        self._previous_language = "Ελληνικά"
         language_frame = ctk.CTkFrame(
             body,
             fg_color=THEME["most_dark"],
@@ -311,22 +335,13 @@ class MainWindow(ctk.CTk):
                                      dropdown_text_color=THEME["white"], corner_radius=THEME["radius"]-2)
         language.grid(row=0, column=0, padx=2, pady=2)
         self.language_menu = language
-        self._lang_tip_label = ctk.CTkLabel(body, text="Язык текста", font=_font(), text_color=THEME["white"])
+        self._lang_tip_label = ctk.CTkLabel(body, text=t("lbl.text_language"), font=_font(), text_color=THEME["white"])
         self._lang_tip_label.grid(row=3, column=1, sticky="w", padx=16)
         self.controls.append(language)
 
         # Основные параметры анализа: перевод LLM и исключение известных слов.
-        self.cards, self.machine, self.known, self.ipa = [ctk.BooleanVar() for _ in range(4)]
-        self._check(body, 4, " Перевод через LLM", self.machine, self.translation_changed,
-                    "Для перевода через LLM нужен OpenAI API key. Введите API key. Он будет сохранен в .local/api-key.bin")
-        self._check(body, 5, " Исключить известные слова", self.known, None,
-                    "Известные слова не будут включаться в итоговый список слов и в карточки для изучения")
-        self.key = ctk.StringVar(value=os.environ.get("OPENAI_API_KEY", ""))
-        if not self.key.get():
-            try:
-                self.key.set(load_key(root))
-            except OSError:
-                logging.getLogger(__name__).warning("Saved API key could not be decrypted for this account")
+        self._check(body, 4, t("chk.llm"), self.machine, self.translation_changed, t("tip.llm"))
+        self._check(body, 5, t("chk.known"), self.known, None, t("tip.known"))
 
         # Блок расширенных параметров: три значения и связанные с ними подсказки.
         self.expanded = True
@@ -334,13 +349,12 @@ class MainWindow(ctk.CTk):
                                      border_width=THEME["border"], corner_radius=THEME["radius"])
         self.advanced.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(5, 5))
         self.advanced.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(self.advanced, text="Расширенные настройки", font=_font(THEME["font_semibold"]),
+        ctk.CTkLabel(self.advanced, text=t("lbl.advanced"), font=_font(THEME["font_semibold"]),
                      text_color=THEME["white"]).grid(row=0, column=0, columnspan=2, pady=(5, 3))
-        self.coverage, self.specificity, self.occurrences = [ctk.StringVar() for _ in range(3)]
         settings = (
-            ("Покрытие текста, %", self.coverage, "Определяет долю текста, которую должны покрывать отобранные наиболее частотные слова"),
-            ("Порог специфичности", self.specificity, "Во сколько раз слово встречается в анализируемом тексте чаще, чем в других текстах"),
-            ("Минимум вхождений в тексте", self.occurrences, "Минимальное количество раз, которое слово должно встретиться в тексте, чтобы оно попало в словарь"),
+            (t("lbl.coverage"), self.coverage, t("tip.coverage")),
+            (t("lbl.specificity"), self.specificity, t("tip.specificity")),
+            (t("lbl.occurrences"), self.occurrences, t("tip.occurrences")),
         )
         for row, (label, variable, tip) in enumerate(settings, 1):
             last_row = row == len(settings)
@@ -359,20 +373,16 @@ class MainWindow(ctk.CTk):
             restore_empty_default(entry, variable, (90, 20, 4)[row - 1])
             Tooltip([label_widget, entry], tip)
             self.controls.append(entry)
-        # Чекбокс IPA оставлен подготовленным для размещения в блоке настроек.
-        #ipa = ctk.CTkCheckBox(self.advanced, text="Добавить транскрипцию IPA", variable=self.ipa,
-        #                      font=_font(size=13), fg_color=THEME["dark"], hover_color=THEME["light"],
-        #                      border_color=THEME["most_dark"], checkmark_color=THEME["white"])
-        #ipa.grid(row=4, column=0, columnspan=2, sticky="w", padx=14, pady=(2, 8))
-        #self.controls.append(ipa)
-        # Кнопка запуска анализа и поясняющая подсказка.
-        self.start_button = ctk.CTkButton(body, text="Начать анализ", height=THEME["button_height"],
-                                          font=_font(), command=self.start, fg_color=THEME["light"],
-                                          hover_color=THEME["dark"], border_color=THEME["most_dark"],
-                                          border_width=THEME["border"], corner_radius=THEME["radius"], text_color=THEME["white"])
-        self.start_button.grid(row=8, column=0, columnspan=3, pady=(14, 7))
+        # Главная кнопка: акцентный цвет и увеличенный размер выделяют её на общем фоне.
+        self.start_button = ctk.CTkButton(body, text=t("btn.start"), height=THEME["start_height"],
+                                          font=_font(THEME["font_semibold"], THEME["start_font_size"]),
+                                          command=self.start, fg_color=THEME["accent"],
+                                          hover_color=THEME["accent_hover"], border_color=THEME["most_dark"],
+                                          border_width=THEME["border"], corner_radius=THEME["radius"],
+                                          text_color=THEME["white"], text_color_disabled=THEME["gray"])
+        self.start_button.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(14, 7))
         self.controls.append(self.start_button)
-        Tooltip(self.start_button, "Запускает анализ текста. В результате будут сформированы список слов и карточки для изучения")
+        Tooltip(self.start_button, t("tip.start"))
 
         # Четыре кнопки открытия созданных результатов.
         results = ctk.CTkFrame(body, fg_color="transparent")
@@ -380,10 +390,8 @@ class MainWindow(ctk.CTk):
         results.grid_columnconfigure(0, weight=1, uniform="result")
         results.grid_columnconfigure(1, weight=1, uniform="result")
         self.result_buttons = {}
-        result_defs = (("list", "Открыть список слов"), ("table", "Сводная таблица"),
-                       ("cards", "Открыть карточки"), ("folder", "Папка с результатами"))
-        for index, (key, label) in enumerate(result_defs):
-            button = self._button(results, label, lambda name=key: self.open_result(name), state="disabled")
+        for index, key in enumerate(("list", "table", "cards", "folder")):
+            button = self._button(results, t(f"btn.{key}"), lambda name=key: self.open_result(name), state="disabled")
             button.configure(text_color_disabled=THEME["gray"])
             button.grid(
                 row=index // 2,
@@ -393,6 +401,7 @@ class MainWindow(ctk.CTk):
                 pady=5,
             )
             self.result_buttons[key] = button
+        self._refresh_result_buttons()
         # Нижняя строка показывает ход анализа, завершение или текст ошибки.
         self.status_separator = ctk.CTkFrame(
             self,
@@ -407,16 +416,54 @@ class MainWindow(ctk.CTk):
         self.status_frame = ctk.CTkFrame(self, fg_color=THEME["dark"], border_width=0, corner_radius=0)
         self.status_frame.grid(row=3, column=0, sticky="ew", padx=0, pady=0)
         self.status_frame.grid_columnconfigure(0, weight=1)
-        self.status = ctk.CTkLabel(self.status_frame, text="Статус: Настройка параметров анализа", anchor="w",
+        self.status = ctk.CTkLabel(self.status_frame, text="", anchor="w",
                                     font=_font(size=THEME["font_size"]), text_color=THEME["white"],
                                     fg_color=THEME["dark"], corner_radius=0, height=30)
         self.status.grid(row=0, column=0, sticky="ew", padx=7)
-        self.defaults()
-        self._poll_id = self.after(100, self.poll)
+        self._set_status(*self._status)
 
-        Tooltip(browse, "Выберите txt-файл с текстом на иностранном языке")
+        Tooltip(browse, t("tip.browse"))
         # Подсказка привязана только к подписи: она не перекрывает открытое меню языка.
-        Tooltip(self._lang_tip_label, "Выберите язык, на котором написан текст")
+        Tooltip(self._lang_tip_label, t("tip.text_language"))
+
+    def _set_status(self, key, values=None):
+        """Remember the status as a message key so a language switch can re-render it."""
+        self._status = (key, values or {})
+        if key == "status.done":
+            text = t(key, lemmas=values["lemmas"])
+            if values.get("cards") is not None:
+                text += t("status.done_cards", cards=values["cards"])
+        else:
+            text = t(key, **(values or {})) if key else self._status_text
+        self.status.configure(text=text)
+
+    def _set_status_text(self, text):
+        # Готовый текст (например, сообщение процесса анализа) показывается как есть.
+        self._status_text = text
+        self._set_status(None)
+
+    def _refresh_result_buttons(self):
+        for name, button in self.result_buttons.items():
+            available = name in self.files and Path(self.files[name]).exists()
+            button.configure(state="normal" if available else "disabled")
+
+    def ui_language_changed(self, label):
+        """Rebuild the window body in the chosen interface language, keeping the form state."""
+        language = label.lower()
+        if language == get_language() or self.controller.running:
+            self.ui_language.set(get_language().upper())
+            return
+        set_language(language)
+        self.ui_language.set(language.upper())
+        for window in (self._help_window, self._api_key_window, self._language_install_window):
+            if window and window.winfo_exists():
+                window.destroy()
+        for widget in (self._body, self.status_separator, self.status_frame):
+            widget.destroy()
+        self._build_body()
+        if self._progress:
+            self._progress_second = None
+            self._show_progress_status()
 
     def _build_titlebar(self):
         # Самодельная верхняя строка нужна для оформления в цветах приложения.
@@ -432,7 +479,15 @@ class MainWindow(ctk.CTk):
             pass
         tk.Label(bar, text="LexiRead Greek", bg=THEME["most_dark"], fg=THEME["white"],
                  font=(THEME["font"], 12)).grid(row=0, column=1, sticky="w")
-        for col, (symbol, command) in enumerate((("–", self._minimize), ("×", self.close)), 2):
+        self.ui_language = ctk.StringVar(value=get_language().upper())
+        switch = ctk.CTkSegmentedButton(
+            bar, values=["EN", "RU"], variable=self.ui_language, command=self.ui_language_changed,
+            height=24, font=_font(size=13), fg_color=THEME["dark"], selected_color=THEME["accent"],
+            selected_hover_color=THEME["accent_hover"], unselected_color=THEME["dark"],
+            unselected_hover_color=THEME["light"], text_color=THEME["white"], corner_radius=6,
+        )
+        switch.grid(row=0, column=2, padx=(0, 8))
+        for col, (symbol, command) in enumerate((("–", self._minimize), ("×", self.close)), 3):
             button = tk.Label(bar, text=symbol, bg=THEME["most_dark"], fg=THEME["white"],
                               font=("Segoe UI", 14), width=4, cursor="hand2", anchor="n",)
             button.grid(row=0, column=col, sticky="nsew")
@@ -614,89 +669,13 @@ class MainWindow(ctk.CTk):
             return
         win = ctk.CTkToplevel(self)
         self._help_window = win
-        win.title("Справка — LexiRead Greek")
+        win.title(t("help.title"))
         win.geometry("760x520")
         win.transient(self)
         win.protocol("WM_DELETE_WINDOW", win.destroy)
-        body = self._dialog_body(win, "Справка — LexiRead Greek", win.destroy, show_minimize=False)
-        ctk.CTkLabel(body, text="Справка", font=_font(THEME["font_semibold"], 21), text_color=THEME["white"]).pack(padx=20, pady=(18, 8))
-        text = """        LexiRead Greek (Learn by reading) – изменённая версия приложения WordByHeart (автор – Egor Tatarnikov) с поддержкой греческого языка. Это приложение для подготовки лексики к изучению, необходимой для прочтения конкретной книги или просмотра сериала на иностранном языке.
-        Приложение создает из текста готовый набор слов для изучения и повторения.
-        
-
-        Краткая инструкция 
-
-        1. Выберите файл книги или субтитров: TXT, EPUB, FB2, DOCX, PDF с текстом, SRT, VTT, ASS (для тестового запуска уже выбран файл demo_el.txt)
-        2. Нажмите «Начать анализ».
-        3. Откройте «Список слов», «Карточки», «Сводную таблицу» и «Папку с результатами»
-
-        Список слов – это слова, которые нужно выучить для комфортного чтения книги на иностранном языке.
-
-        Карточки – это слова из списка, размещенные на листе в таблице 8х3. Один лист содержит 24 карточки. Файл подготовлен для двусторонней печати. Сначала распечатайте лицевые стороны всех листов, затем переверните бумагу и распечатайте обратные стороны. После разрезания получатся двусторонние карточки для изучения и повторения слов.
-
-        Сводная таблица содержит леммы и словоформы, распознанные программой в тексте, а также их частоту, переводы, транскрипцию, грамматическую информацию и примечания. Она удобна для дополнительного анализа текста. 
-
-        В папке с результатами хранятся все результирующие файлы.
-        
-
-        Подробная инструкция
-
-        1. Выберите txt-файл с текстом на иностранном языке. Рекомендуется использовать кодировку UTF-8. Программа пытается автоматически распознать и прочитать другие распространённые кодировки, однако в некоторых случаях возможны ошибки. Если текст отображается неправильно, откройте файл в Блокноте, выберите «Сохранить как» и укажите кодировку UTF-8.
-
-        2. Выберите язык, на котором написан текст. Сейчас приложение поддерживает английский, испанский и греческий языки.
-
-        3. По умолчанию перевод слов выполняется через локальный словарь Kaikki. При необходимости можно включить перевод через языковую модель (LLM). Для этого потребуется API key OpenAI.
-
-        4. Если у вас имеется список слов, которые вы уже знаете, перенесите их в словарь (my_dictionary_en.xlsx – для английского, my_dictionary_es.xlsx – для испанского, my_dictionary_el.xlsx – для греческого), который находится в корневой папке приложения. Для примера в словари уже внесено несколько слов. 
-        Если слово из вашего словаря будет найдено в книге, оно не будет переводиться и не будет включаться в итоговые списки и карточки слов для изучения. При этом такие слова останутся в сводной таблице.
-
-        5. Расширенные настройки. Установите ограничения для выбора слов параметрами «Покрытие текста», «Порог специфичности» и «Минимум вхождений в тексте».
-        По умолчанию заданы следующие параметры:
-        
-        Покрытие текста – 90%. В список для изучения войдут наиболее частые слова, которые суммарно покрывают 90% текста. Допустимый диапазон значений: 0 - 100
-        
-        Порог специфичности – 20. Дополнительно в список войдут слова, которые не входят в диапазон покрытия текста, но встречаются в тексте в 20 и более раз чаще, чем в среднем в других текстах. Удобный инструмент для быстрого погружения в предметные области, где встречается много специализированной лексики и терминов. Допустимый диапазон значений: 1 - 1000. При значении 0 специфичность не учитывается для формирования списка слов к изучению.
-        
-        Минимум вхождений в тексте – 4. Слово должно встретиться в тексте не менее четырёх раз, чтобы попасть в список для изучения, даже если оно соответствует настройкам покрытия или специфичности. Допустимый диапазон значений: 1 - 1000000
-
-        6. Нажмите «Начать анализ». Обработка текста зависит от его размера и выбранного способа перевода. При переводе через Kaikki она обычно занимает несколько минут. Перевод через LLM может занять существенно больше времени, особенно для большой книги.
-
-        7. Изучите результат анализа.
-
-
-        Описание работы приложения
-
-        После выбора текста на иностранном языке программа выполняет обработку текста в несколько этапов.
-
-        Предобработка. Исходный текст загружается, очищается и подготавливается к анализу. Длинный текст разбивается на небольшие фрагменты (чанки), чтобы программа могла корректно обработать даже большую книгу.
-
-        NLP-анализ. Для проведения NLP-анализа используется модель spaCy. Она выделяет предложения, слова, начальные формы слов (леммы), части речи и грамматические признаки.
-
-        Частотный анализ. Программа собирает леммы, словоформы, примеры использования слов, подсчитывает частоту слов и их покрытие текста.
-
-        Оценка специфичности. Частота слова в данном тексте сравнивается с его обычной частотой в языке. В качестве источника общеязыковой частотности используется библиотека wordfreq, основанная на больших массивах текстов. Параметр «специфичность» показывает, насколько чаще слово встречается в этом тексте по сравнению с его обычной частотой в языке. Это помогает выделить слова, особенно важные для конкретного текста.
-
-        Постобработка текста. Программа очищает и объединяет результаты анализа, чтобы слова отображались в удобном для изучения виде. 
-
-        Грамматическое дополнение. Программа добавляет сведения, полезные для изучения слов. Для английского языка, к примеру, добавляются основные формы существительных и глаголов. Для этого используются данные языковой модели, правила программы и словарь исключений.
-
-        Транскрипция (IPA). Для создания транскрипций используется eSpeak NG.
-
-        Перевод. Перевод слов по умолчанию выполняется через локальный словарь Kaikki. Имеется возможность подключить перевод через LLM. Для перевода используется OpenAI GPT-6 Luna. 
-
-        В модель передаётся не только слово, но и примеры его использования в тексте, часть речи и словоформы. Это позволяет переводить слова с учётом контекста.
-        
-        Валидация результата. Программа проверяет результаты обработки и отмечает возможные проблемы. Например, если программа находит отсутствующий перевод или транскрипцию, сомнительную форму слова, неоднозначность или ошибку автоматического анализа, то такие слова попадают в отдельный список для проверки.
-
-        Подготовка результатов. Программа создаёт итоговые таблицы со словарём, переводами, транскрипцией и грамматической информацией, а также список слов и карточки для изучения.
-
-
-        Описание идеи
-
-        Проект вырос из практической методики, где вместо абстрактной цели «выучить язык» ставится конкретная задача - прочитать книгу или посмотреть сериал.
-        Изучение ограниченного набора слов, которые действительно важны для понимания выбранного текста, позволяет быстрее перейти к контенту на иностранном языке.
-        Чтение любимых книг и просмотр сериалов в оригинале приносят удовольствие, дают ощущение прогресса и поддерживают мотивацию к дальнейшему изучению языка.
-"""
+        body = self._dialog_body(win, t("help.title"), win.destroy, show_minimize=False)
+        ctk.CTkLabel(body, text=t("help.heading"), font=_font(THEME["font_semibold"], 21), text_color=THEME["white"]).pack(padx=20, pady=(18, 8))
+        text = help_text()
         textbox = ctk.CTkTextbox(body, wrap="word", font=_font(), fg_color=THEME["dark"], text_color=THEME["white"],
                                  border_color=THEME["most_dark"], border_width=THEME["border"], corner_radius=THEME["radius"])
         textbox.pack(fill="both", expand=True, padx=18, pady=(4, 8))
@@ -714,7 +693,7 @@ class MainWindow(ctk.CTk):
         links.pack(fill="x", padx=18, pady=(0, 18))
         video_button = self._button(
             links,
-            "Видеоинструкция",
+            t("help.video"),
             lambda: webbrowser.open_new_tab("https://youtu.be/1IjTnEf85Ak?si=DEMB69-BiZU5kzxv"),
         )
         video_button.pack(side="left")
@@ -724,8 +703,8 @@ class MainWindow(ctk.CTk):
             lambda: webbrowser.open_new_tab("https://github.com/fijias/LexiRead-Greek"),
         )
         github_button.pack(side="right")
-        Tooltip(video_button, "Видеоинструкция оригинального приложения WordByHeart на YouTube")
-        Tooltip(github_button, "Ссылка на репозиторий проекта и лицензию")
+        Tooltip(video_button, t("tip.video"))
+        Tooltip(github_button, t("tip.github"))
         self._center_dialog(win)
 
     def defaults(self, *_):
@@ -754,10 +733,10 @@ class MainWindow(ctk.CTk):
             self._language_install_window.lift()
             return
 
-        genitive, accusative, _, _ = OPTIONAL_LANGUAGES[language]
+        names = language_forms(language)
         win = ctk.CTkToplevel(self)
         self._language_install_window = win
-        win.title(f"Установка {genitive} языка")
+        win.title(t("install.title", **names))
         win.geometry("560x230")
         win.resizable(False, False)
         win.transient(self)
@@ -767,10 +746,10 @@ class MainWindow(ctk.CTk):
             self.language.set(self._previous_language)
             win.destroy()
 
-        body = self._dialog_body(win, f"Установка {genitive} языка", cancel)
+        body = self._dialog_body(win, t("install.title", **names), cancel)
         ctk.CTkLabel(
             body,
-            text=f"Для создания списка слов для {genitive} языка необходимо установить дополнительные библиотеки",
+            text=t("install.prompt", **names),
             font=_font(size=18), text_color=THEME["white"], justify="left", wraplength=510,
         ).pack(fill="x", padx=24, pady=(30, 20))
 
@@ -781,13 +760,14 @@ class MainWindow(ctk.CTk):
 
         buttons = ctk.CTkFrame(body, fg_color="transparent")
         buttons.pack(fill="x", padx=24, pady=(0, 20))
-        self._button(buttons, "Отмена", cancel).pack(side="left")
-        self._button(buttons, f"Установить {accusative}", install).pack(side="right")
+        self._button(buttons, t("btn.cancel"), cancel).pack(side="left")
+        self._button(buttons, t("install.button", **names), install).pack(side="right")
         win.protocol("WM_DELETE_WINDOW", cancel)
         self._center_dialog(win)
 
     def _start_language_installation(self, language):
-        genitive, accusative, _, installer = OPTIONAL_LANGUAGES[language]
+        installer = OPTIONAL_LANGUAGES[language]
+        names = language_forms(language)
         try:
             self._language_install_process = subprocess.Popen(
                 ["cmd.exe", "/c", str(self.root / installer)],
@@ -796,16 +776,16 @@ class MainWindow(ctk.CTk):
             )
         except OSError:
             self.language.set(self._previous_language)
-            messagebox.showerror(f"Установка: {accusative}", "Не удалось запустить установку.", parent=self)
+            messagebox.showerror(t("install.error_title", **names), t("install.start_failed"), parent=self)
             return
         self.language_menu.configure(state="disabled")
-        self.status.configure(text=f"Статус: Установка компонентов {genitive} языка…")
+        self._set_status("status.installing", names)
         self.after(500, self._poll_language_installation, language)
 
     def _poll_language_installation(self, language):
         if self._closing:
             return
-        _, accusative, nominative, _ = OPTIONAL_LANGUAGES[language]
+        names = language_forms(language)
         result = self._language_install_process.poll()
         if result is None:
             self.after(500, self._poll_language_installation, language)
@@ -815,14 +795,14 @@ class MainWindow(ctk.CTk):
         if result == 0 and language_is_installed(self.root, language):
             self._previous_language = next(name for name, code in LANGUAGES.items() if code == language)
             self.defaults()
-            self.status.configure(text=f"Статус: {nominative} язык установлен")
+            self._set_status("status.installed", names)
             return
         self.language.set(self._previous_language)
         self.defaults()
-        self.status.configure(text=f"Статус: {nominative} язык не установлен")
+        self._set_status("status.not_installed", names)
         messagebox.showerror(
-            f"Установка: {accusative}",
-            "Не удалось установить дополнительные компоненты. Подробности сохранены в logs/setup.log.",
+            t("install.error_title", **names),
+            t("install.failed"),
             parent=self,
         )
 
@@ -853,7 +833,7 @@ class MainWindow(ctk.CTk):
         body = self._dialog_body(win, "OpenAI API key", cancel, show_minimize=False)
 
         entered_key = ctk.StringVar()
-        ctk.CTkLabel(body, text="Введите OpenAI API key", font=_font(THEME["font_semibold"], 21),
+        ctk.CTkLabel(body, text=t("api.heading"), font=_font(THEME["font_semibold"], 21),
                      text_color=THEME["white"]).pack(padx=20, pady=(20, 10))
         entry = ctk.CTkEntry(body, textvariable=entered_key, show="*", placeholder_text="OpenAI API key",
                              height=THEME["control_height"], font=_font(), fg_color=THEME["light"],
@@ -865,20 +845,20 @@ class MainWindow(ctk.CTk):
         key_path = self.root / ".local" / "api-key.bin"
         ctk.CTkLabel(
             body,
-            text=f"Ключ будет сохранён в:\n{key_path}",
+            text=t("api.saved_to", path=key_path),
             font=_font(size=16), text_color=THEME["white"], justify="center", wraplength=480,
         ).pack(fill="x", padx=20, pady=(12, 10))
 
         def save():
             key = entered_key.get().strip()
             if not key:
-                messagebox.showinfo("OpenAI API", "Введите API key.", parent=win)
+                messagebox.showinfo("OpenAI API", t("api.enter"), parent=win)
                 return
             try:
                 save_key(self.root, key)
             except OSError:
                 logging.getLogger(__name__).exception("Unable to save API key")
-                messagebox.showerror("OpenAI API", "Не удалось сохранить API key.", parent=win)
+                messagebox.showerror("OpenAI API", t("api.save_failed"), parent=win)
                 return
             self.key.set(key)
             os.environ["OPENAI_API_KEY"] = key
@@ -886,8 +866,8 @@ class MainWindow(ctk.CTk):
 
         buttons = ctk.CTkFrame(body, fg_color="transparent")
         buttons.pack(fill="x", padx=20, pady=(4, 16))
-        self._button(buttons, "Отмена", cancel).pack(side="left")
-        self._button(buttons, "Сохранить", save).pack(side="right")
+        self._button(buttons, t("btn.cancel"), cancel).pack(side="left")
+        self._button(buttons, t("btn.save"), save).pack(side="right")
         win.protocol("WM_DELETE_WINDOW", cancel)
         entry.bind("<Return>", lambda _event: save())
         self._center_dialog(win)
@@ -897,11 +877,11 @@ class MainWindow(ctk.CTk):
         # Открывает системный диалог выбора книги или субтитров.
         path = filedialog.askopenfilename(
             parent=self,
-            title="Выберите текст книги",
+            title=t("dialog.browse_title"),
             initialdir=self.root / "data" / "input",
             filetypes=[
-                ("Книги и субтитры", " ".join(f"*{s}" for s in SUPPORTED_SUFFIXES) + " *.fb2.zip"),
-                ("Все файлы", "*.*"),
+                (t("dialog.books"), " ".join(f"*{s}" for s in SUPPORTED_SUFFIXES) + " *.fb2.zip"),
+                (t("dialog.all_files"), "*.*"),
             ],
         )
         if path:
@@ -928,7 +908,7 @@ class MainWindow(ctk.CTk):
 
     def _show_ready_status(self):
         if hasattr(self, "status") and not self.controller.running:
-            self.status.configure(text="Статус: Настройка параметров анализа")
+            self._set_status("status.ready")
 
     def set_busy(self, busy):
         for widget in self.controls:
@@ -943,7 +923,7 @@ class MainWindow(ctk.CTk):
                 if variable.get() == "":
                     variable.set(str(default))
             if self.machine.get() and not self.key.get().strip():
-                messagebox.showinfo("OpenAI API", "Введите API key или отключите перевод через модель.", parent=self)
+                messagebox.showinfo("OpenAI API", t("api.required"), parent=self)
                 return
             options = {"cards": self.cards.get(), "machine": self.machine.get(), "known": self.known.get(),
                        "ipa": self.ipa.get(), "coverage": self.coverage.get().replace(",", "."),
@@ -960,11 +940,11 @@ class MainWindow(ctk.CTk):
             save_config(path, cfg)
             self.controller.start(self.root, path, source, key)
         except ValidationError:
-            messagebox.showerror("Настройки", "Покрытие: от 0 до 100%. Порог: целое число от 1 до 1000; 0 отключает отбор по специфичности. Количество вхождений: целое число от 1 до 1 000 000.", parent=self)
+            messagebox.showerror(t("err.settings_title"), t("err.settings"), parent=self)
             return
         except (ValueError, OSError) as exc:
             logging.getLogger(__name__).exception("Unable to start analysis")
-            messagebox.showerror("Не удалось начать", str(exc) if isinstance(exc, ValueError) else "Не удалось открыть или сохранить файл. Проверьте права доступа.", parent=self)
+            messagebox.showerror(t("err.start_title"), str(exc) if isinstance(exc, ValueError) else t("err.file_access"), parent=self)
             return
         self.files = {}
         for button in self.result_buttons.values():
@@ -972,7 +952,7 @@ class MainWindow(ctk.CTk):
         self.set_busy(True)
         self._progress = None
         self._progress_second = None
-        self.status.configure(text="Статус: Подготовка анализа…")
+        self._set_status("status.preparing")
 
     def poll(self):
         # Получает события фонового процесса и обновляет статус/кнопки результатов.
@@ -983,7 +963,7 @@ class MainWindow(ctk.CTk):
                 event = self.controller.events.get_nowait()
                 kind = event.get("type")
                 if kind == "progress":
-                    if not self._progress or self._progress["label"] != event["label"]:
+                    if not self._progress or self._progress["stage"] != event["stage"]:
                         self._progress = {**event, "started": time.monotonic()}
                         self._progress_second = None
                     else:
@@ -994,13 +974,11 @@ class MainWindow(ctk.CTk):
                     self._progress_second = None
                     self.set_busy(False)
                     if kind == "done":
-                        self.status.configure(text=f"Статус: {event['summary']}")
+                        self._set_status("status.done", event["summary"])
                         self.files = event["files"]
-                        for name, button in self.result_buttons.items():
-                            available = name in self.files and Path(self.files[name]).exists()
-                            button.configure(state="normal" if available else "disabled")
+                        self._refresh_result_buttons()
                     else:
-                        self.status.configure(text="Статус: Ошибка")
+                        self._set_status("status.error")
                         messagebox.showerror("LexiRead Greek", event["message"], parent=self)
         except queue.Empty:
             pass
@@ -1015,26 +993,25 @@ class MainWindow(ctk.CTk):
             return
         self._progress_second = elapsed
         minutes, seconds = divmod(elapsed, 60)
-        elapsed_text = f"{minutes} мин {seconds:02d} сек" if minutes else f"{seconds} сек"
-        self.status.configure(
-            text=(f"Статус: {self._progress['label']} · "
-                  f"{self._progress['completed']} из {self._progress['total']} этапов · "
-                  f"выполняется {elapsed_text}")
-        )
+        elapsed_text = t("time.min_sec", minutes=minutes, seconds=seconds) if minutes else t("time.sec", seconds=seconds)
+        self._set_status("status.progress", {
+            "stage": t(f"stage.{self._progress['stage']}"), "completed": self._progress["completed"],
+            "total": self._progress["total"], "elapsed": elapsed_text,
+        })
 
     def open_result(self, name):
         # Открывает выбранный созданный файл или папку средствами ОС.
         try:
             open_path(self.files[name])
         except (OSError, KeyError):
-            messagebox.showerror("Результаты", "Не удалось открыть результат. Проверьте, что файл существует и для него установлена программа.", parent=self)
+            messagebox.showerror(t("err.results_title"), t("err.open_result"), parent=self)
 
     def close(self):
         # При закрытии останавливает анализ по запросу и отменяет периодический опрос.
         if self._closing:
             return
         if self.controller.running:
-            if not messagebox.askyesno("Остановить анализ?", "Обработка ещё идёт. Остановить её и закрыть окно?", parent=self):
+            if not messagebox.askyesno(t("close.title"), t("close.text"), parent=self):
                 return
         self._closing = True
         try:

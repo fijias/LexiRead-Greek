@@ -6,21 +6,8 @@ import json
 import logging
 import sys
 
+from src.i18n import t
 from src.runtime import configure_logging
-
-LABELS = {
-    "preprocess": "Подготовка текста",
-    "nlp": "Анализ текста",
-    "aggregate": "Подсчёт слов",
-    "reference": "Оценка частот",
-    "postprocess": "Подготовка словаря",
-    "grammar": "Грамматические формы",
-    "ipa": "Транскрипция",
-    "translate": "Перевод",
-    "validate": "Проверка результатов",
-    "export": "Таблицы",
-    "cards": "Карточки",
-}
 
 
 def friendly_error(stage, exc):
@@ -29,16 +16,16 @@ def friendly_error(stage, exc):
     if isinstance(exc, SourceFormatError):
         return str(exc)
     if isinstance(exc, UnicodeError):
-        return "Не удалось прочитать текст. Сохраните TXT в кодировке UTF-8."
+        return t("err.encoding")
     if stage == "nlp":
-        return "Не удалось выполнить анализ текста. Запустите INSTALL.bat для проверки NLP-модели."
+        return t("err.nlp")
     if stage == "ipa":
-        return "Не удалось создать транскрипцию. Запустите INSTALL.bat для проверки eSpeak NG."
+        return t("err.ipa")
     if stage == "translate":
-        return "Не удалось выполнить перевод через модель. Проверьте API key, доступ к модели и интернет."
+        return t("err.translate")
     if isinstance(exc, PermissionError):
-        return "Нет доступа к файлу. Закройте открытые таблицы и карточки и повторите запуск."
-    return "Не удалось завершить обработку. Подробности сохранены в logs/lexiread.log."
+        return t("err.permission")
+    return t("err.generic")
 
 
 def main(argv=None):
@@ -58,7 +45,7 @@ def main(argv=None):
     def progress(stage, completed, total):
         nonlocal active
         active = stage
-        send({"type": "progress", "label": LABELS[stage], "completed": completed, "total": total})
+        send({"type": "progress", "stage": stage, "completed": completed, "total": total})
 
     try:
         from src.application import run_pipeline
@@ -76,10 +63,10 @@ def main(argv=None):
             from src.storage import read_rows
 
             lemmas = read_rows(pipeline.outputs["postprocess"][0])
-            summary = f"Обработка завершена. Лемм: {len({row['lemma'] for row in lemmas})}."
-            count = pipeline.manifest.data["stages"].get("cards", {}).get("selected_cards")
-            if count is not None:
-                summary += f" Карточек: {count}."
+            summary = {
+                "lemmas": len({row["lemma"] for row in lemmas}),
+                "cards": pipeline.manifest.data["stages"].get("cards", {}).get("selected_cards"),
+            }
         send({"type": "done", "files": files, "summary": summary})
         return 0
     except Exception as exc:

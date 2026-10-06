@@ -7,6 +7,8 @@ import subprocess
 import sys
 import threading
 
+from src.i18n import ENV, get_language, t
+
 
 class Controller:
     def __init__(self):
@@ -20,8 +22,8 @@ class Controller:
 
     def start(self, root, config, source, api_key=""):
         if self.running:
-            raise RuntimeError("Анализ уже запущен.")
-        env = dict(os.environ, PYTHONUTF8="1")
+            raise RuntimeError(t("err.already_running"))
+        env = dict(os.environ, PYTHONUTF8="1", **{ENV: get_language()})
         if api_key:
             env["OPENAI_API_KEY"] = api_key
         # Never put secrets in command-line arguments or runtime YAML.
@@ -55,7 +57,7 @@ class Controller:
                 self.events.put(
                     {
                         "type": "error",
-                        "message": "Процесс обработки остановлен. Запустите INSTALL.bat для проверки установки.",
+                        "message": t("err.process_stopped"),
                     }
                 )
 

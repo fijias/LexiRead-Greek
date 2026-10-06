@@ -13,6 +13,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from xml.etree import ElementTree
 
+from src.i18n import t
+
 SUBTITLES = {".srt", ".vtt", ".ass", ".ssa"}
 SUPPORTED_SUFFIXES = (".txt", ".epub", ".fb2", ".docx", ".pdf", *sorted(SUBTITLES))
 # Scripts expected in a text of each language, to recognize PDFs with broken font encodings.
@@ -39,16 +41,16 @@ def read_source(source: Path, language: str, decode) -> tuple[str, str]:
         text, encoding = decode(source, language)
         return read_subtitles(text, kind), f"{kind[1:]} ({encoding})"
     if kind not in readers:
-        raise SourceFormatError(
-            f"Формат {source.suffix or source.name} не поддерживается. Поддерживаются: "
-            + ", ".join(s[1:].upper() for s in SUPPORTED_SUFFIXES)
-        )
+        raise SourceFormatError(t(
+            "fmt.unsupported", suffix=source.suffix or source.name,
+            formats=", ".join(s[1:].upper() for s in SUPPORTED_SUFFIXES),
+        ))
     try:
         text = readers[kind](source, language) if kind == ".pdf" else readers[kind](source)
     except (zipfile.BadZipFile, ElementTree.ParseError, KeyError) as exc:
-        raise SourceFormatError(f"Файл {source.name} повреждён или не является {kind[1:].upper()}.") from exc
+        raise SourceFormatError(t("fmt.corrupt", name=source.name, kind=kind[1:].upper())) from exc
     if not text.strip():
-        raise SourceFormatError(f"В файле {source.name} не найден текст.")
+        raise SourceFormatError(t("fmt.no_text", name=source.name))
     return text, kind[1:]
 
 
@@ -175,23 +177,17 @@ def read_pdf(path: Path, language: str = "el") -> str:
     try:
         reader = PdfReader(path)
         if reader.is_encrypted and not reader.decrypt(""):
-            raise SourceFormatError(f"PDF {path.name} защищён паролем.")
+            raise SourceFormatError(t("fmt.encrypted", name=path.name))
         pages = [page.extract_text() or "" for page in reader.pages]
     except PdfReadError as exc:
-        raise SourceFormatError(f"Не удалось прочитать PDF {path.name}: файл повреждён.") from exc
+        raise SourceFormatError(t("fmt.pdf_broken", name=path.name)) from exc
     if sum(len(page.strip()) for page in pages) < MIN_CHARS_PER_PAGE * max(1, len(pages)):
-        raise SourceFormatError(
-            f"В PDF {path.name} почти нет текстового слоя — вероятно, это скан. "
-            "Распознайте текст (OCR) и сохраните книгу в TXT, EPUB или PDF с текстом."
-        )
+        raise SourceFormatError(t("fmt.scan", name=path.name))
     text = join_pdf_pages(pages)
     letters = re.findall(r"[^\W\d_]", text)
     expected = LANGUAGE_LETTERS.get(language)
     if expected and letters and sum(bool(expected.match(c)) for c in letters) < 0.3 * len(letters):
-        raise SourceFormatError(
-            f"Текст PDF {path.name} извлекается неверными символами (шрифты без таблицы Unicode). "
-            "Откройте файл в Calibre или Word и сохраните как TXT или EPUB."
-        )
+        raise SourceFormatError(t("fmt.garbled", name=path.name))
     return text
 
 
