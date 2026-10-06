@@ -18,6 +18,9 @@ def enrich_greek(entry, info, lexicon):
     if pos not in {"NOUN", "VERB", "AUX", "ADJ"}:
         return
     head = lexicon.headword(lemma, pos)
+    if head is None and pos == "AUX":
+        # να, θα, ας are tagged AUX but are particles in dictionaries; nothing to learn as a verb form.
+        return
     if head is None and lexicon.is_headword(lemma):
         # Known word under another POS (που, όλος tagged NOUN): no noun article or forms.
         info.review.append("Часть речи не совпадает со словарём Kaikki")

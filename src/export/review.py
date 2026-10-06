@@ -1,8 +1,21 @@
 """Plain-language view of validation results; diagnostics remain in Parquet."""
 
 from src.grammar.pos_mapping import POS_RU
+from src.text import script
 
-REVIEW_COLUMNS = ["Слово", "Часть речи", "Статус", "Что проверить", "Что сделать"]
+REVIEW_COLUMNS = [
+    "Слово",
+    "Алфавит",
+    "Часть речи",
+    "Вхождений",
+    "В списке для изучения",
+    "Статус",
+    "Что проверить",
+    "Что сделать",
+    "Пример из текста",
+]
+# Alphabet is a quick filter: in a Greek text, Latin-script words are names, brands or foreign quotes.
+SCRIPT_RU = {"greek": "Греческий", "latin": "Латиница", "cyrillic": "Кириллица", "mixed": "Смешанный", "other": "—"}
 
 _GRAMMAR = {
     "Modal verb: incomplete paradigm": "Не все формы модального глагола определены",
@@ -16,6 +29,8 @@ _GRAMMAR = {
     "Pluralia tantum: учебная форма требует проверки": "Слово употребляется во множественном числе",
     "Plural противоречит наблюдаемым формам": "Множественное число не совпадает с формой в книге",
     "Plural не определён надёжно": "Не удалось надёжно определить множественное число",
+    "Лемма не найдена в словаре Kaikki: проверить лемматизацию": "Начальная форма не найдена в словаре: возможна ошибка анализа, имя собственное или редкое слово",
+    "Часть речи не совпадает со словарём Kaikki": "Часть речи, определённая в тексте, не совпадает со словарём",
 }
 
 
@@ -64,20 +79,30 @@ def describe(issue):
 
 def make_review_rows(data):
     entries = {r["id"]: r for r in data["lemmas"] + data["forms"]}
+    translations = {r["id"]: r for r in data.get("translations", [])}
     rows, seen = [], set()
-    for issue in sorted(data["validation"], key=lambda r: (r["severity"] != "error", r["id"], r["message"])):
+    for issue in data["validation"]:
         if issue["severity"] == "info":
             continue
         entry = entries.get(issue["id"], {})
+        word = entry.get("form", entry.get("lemma"))
+        translation = translations.get(issue["id"], {})
+        # Words selected for cards are the ones worth checking first.
+        in_list = bool(word) and translation.get("translation_eligible", False) and translation.get("error") != "known word excluded"
         problem, action = describe(issue)
         row = (
-            entry.get("form", entry.get("lemma")) or "Весь словарь",
+            word or "Весь словарь",
+            SCRIPT_RU[script(word)] if word else "—",
             POS_RU.get(entry.get("pos"), "—"),
+            entry.get("count", ""),
+            "Да" if in_list else "Нет",
             "Ошибка" if issue["severity"] == "error" else "Нужно проверить",
             problem,
             action,
+            entry["contexts"][0] if entry.get("contexts") else "",
         )
         if row not in seen:
             rows.append(list(row))
             seen.add(row)
-    return rows or [["—", "—", "Замечаний нет", "Нет замечаний, требующих ручной проверки.", "—"]]
+    rows.sort(key=lambda r: (r[5] != "Ошибка", r[4] != "Да", -(r[3] or 0), r[0], r[6]))
+    return rows or [["—", "—", "—", "", "—", "Замечаний нет", "Нет замечаний, требующих ручной проверки.", "—", ""]]

@@ -152,3 +152,9 @@ def test_gloss_notes_are_skipped():
         "senses": [{"glosses": ["to have, hold"]}, {"glosses": ["alternative of μου"]}, {"glosses": ["Plant and fruit senses"]}],
     }
     assert [row[4] for row in gloss_rows(entry, "el")] == ["to have", "hold"]
+
+
+def test_particles_tagged_aux_are_not_flagged(lexicon):
+    info = GrammarInfo("p", learning_form="να")
+    enrich_greek({"lemma": "να", "pos": "AUX", "morph_variants": []}, info, lexicon)
+    assert not info.review and not info.grammar_forms
