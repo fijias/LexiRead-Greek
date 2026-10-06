@@ -19,7 +19,9 @@ import customtkinter as ctk
 from pydantic import ValidationError
 
 from src.config import load_config
-from src.gui.configuration import LANGUAGES, OPTIONAL_LANGUAGES, build_config, save_config, valid_numeric_edit, restore_empty_default
+from src.cards.known_words import append_words, import_word_file
+from src.cards.level import LEVELS
+from src.gui.configuration import LANGUAGES, OPTIONAL_LANGUAGES, build_config, known_dictionary_path, save_config, valid_numeric_edit, restore_empty_default
 from src.gui.controller import Controller
 from src.gui.secrets import load_key, save_key
 from src.i18n import get_language, help_text, language_forms, set_language, t
@@ -44,7 +46,7 @@ THEME = {
     "radius": 8,
     "mini_radius": 8,
     "window_width": 572,
-    "window_height": 668,
+    "window_height": 714,
     "pad_x": 20,
     "button_height": 32,
     "control_height": 32,
@@ -191,7 +193,7 @@ class Tooltip:
     def _show(self, widget):
         self.timer = None
         self._timer_widget = None
-        if self.window or not widget.winfo_exists():
+        if self.window or not self.text or not widget.winfo_exists():
             return
         self.window = tk.Toplevel(widget)
         self.window.wm_overrideredirect(True)
@@ -234,6 +236,7 @@ class MainWindow(ctk.CTk):
         self._help_window = None
         self._api_key_window = None
         self._language_install_window = None
+        self._card_settings_window = None
         self._language_install_process = None
         self._closing = False
         self._poll_id = None
@@ -277,6 +280,10 @@ class MainWindow(ctk.CTk):
         self._previous_language = "Ελληνικά"
         self.cards, self.machine, self.known, self.ipa = [ctk.BooleanVar() for _ in range(4)]
         self.coverage, self.specificity, self.occurrences = [ctk.StringVar() for _ in range(3)]
+        self.skip_function, self.skip_names, self.skip_numbers, self.skip_alphabet = [ctk.BooleanVar() for _ in range(4)]
+        self.known_level = ctk.IntVar(value=0)
+        self.max_cards = ctk.StringVar(value="0")
+        self._forecast = None
         self.key = ctk.StringVar(value=os.environ.get("OPENAI_API_KEY", ""))
         if not self.key.get():
             try:
@@ -342,6 +349,12 @@ class MainWindow(ctk.CTk):
         # Основные параметры анализа: перевод LLM и исключение известных слов.
         self._check(body, 4, t("chk.llm"), self.machine, self.translation_changed, t("tip.llm"))
         self._check(body, 5, t("chk.known"), self.known, None, t("tip.known"))
+        card_settings = self._button(body, t("btn.card_settings"), self.show_card_settings, width=THEME["upper_button_width"])
+        card_settings.grid(row=6, column=0, sticky="w", pady=(5, 5))
+        card_label = ctk.CTkLabel(body, text=t("lbl.card_settings"), font=_font(), text_color=THEME["white"])
+        card_label.grid(row=6, column=1, columnspan=2, sticky="w", padx=(16, 0))
+        Tooltip([card_settings, card_label], t("tip.card_settings"))
+        self.controls.append(card_settings)
 
         # Блок расширенных параметров: три значения и связанные с ними подсказки.
         self.expanded = True
@@ -420,6 +433,7 @@ class MainWindow(ctk.CTk):
                                     font=_font(size=THEME["font_size"]), text_color=THEME["white"],
                                     fg_color=THEME["dark"], corner_radius=0, height=30)
         self.status.grid(row=0, column=0, sticky="ew", padx=7)
+        self.status_tip = Tooltip(self.status, "")
         self._set_status(*self._status)
 
         Tooltip(browse, t("tip.browse"))
@@ -433,14 +447,27 @@ class MainWindow(ctk.CTk):
             text = t(key, lemmas=values["lemmas"])
             if values.get("cards") is not None:
                 text += t("status.done_cards", cards=values["cards"])
+            if values.get("imported"):
+                text += t("status.imported", count=values["imported"])
         else:
             text = t(key, **(values or {})) if key else self._status_text
         self.status.configure(text=text)
+        if key == "status.done":
+            self._forecast = values.get("forecast")
+        # The forecast is shown as the status tooltip and in the word-filter window.
+        self.status_tip.text = self._forecast_text()
 
     def _set_status_text(self, text):
         # Готовый текст (например, сообщение процесса анализа) показывается как есть.
         self._status_text = text
         self._set_status(None)
+
+    def _forecast_text(self):
+        """How many cards other coverage levels would give, from the last analysis."""
+        if not self._forecast:
+            return ""
+        items = " · ".join(f"{coverage}% — {count}" for coverage, count in self._forecast.items())
+        return t("status.forecast", items=items)
 
     def _refresh_result_buttons(self):
         for name, button in self.result_buttons.items():
@@ -455,7 +482,7 @@ class MainWindow(ctk.CTk):
             return
         set_language(language)
         self.ui_language.set(language.upper())
-        for window in (self._help_window, self._api_key_window, self._language_install_window):
+        for window in (self._help_window, self._api_key_window, self._language_install_window, self._card_settings_window):
             if window and window.winfo_exists():
                 window.destroy()
         for widget in (self._body, self.status_separator, self.status_frame):
@@ -707,6 +734,107 @@ class MainWindow(ctk.CTk):
         Tooltip(github_button, t("tip.github"))
         self._center_dialog(win)
 
+    def _level_labels(self):
+        return {t("cards.level_none") if level == 0 else t("cards.level_n", n=level): level for level in LEVELS}
+
+    def show_card_settings(self):
+        # Окно настроек карточек: фильтры категорий, уровень знаний, лимит и свои известные слова.
+        if self._card_settings_window and self._card_settings_window.winfo_exists():
+            self._card_settings_window.deiconify()
+            self._card_settings_window.lift()
+            return
+        win = ctk.CTkToplevel(self)
+        self._card_settings_window = win
+        win.title(t("cards.title"))
+        win.geometry("600x560" if self._forecast_text() else "600x525")
+        win.resizable(False, False)
+        win.transient(self)
+        body = self._dialog_body(win, t("cards.title"), win.destroy, show_minimize=False)
+        body.grid_columnconfigure(0, weight=1)
+
+        def heading(text, top=14):
+            ctk.CTkLabel(body, text=text, font=_font(THEME["font_semibold"]), text_color=THEME["white"]).pack(
+                anchor="w", padx=20, pady=(top, 4))
+
+        def check(text, variable):
+            ctk.CTkCheckBox(body, text=" " + text, variable=variable, font=_font(), fg_color=THEME["dark"],
+                            hover_color=THEME["light"], border_color=THEME["most_dark"],
+                            border_width=THEME["border"], corner_radius=THEME["mini_radius"],
+                            checkmark_color=THEME["white"], text_color=THEME["white"]).pack(anchor="w", padx=28, pady=3)
+
+        if self._forecast_text():
+            ctk.CTkLabel(body, text=self._forecast_text(), font=_font(size=15), text_color=THEME["gray"],
+                         justify="left", wraplength=540).pack(anchor="w", padx=20, pady=(12, 0))
+        heading(t("cards.skip_heading"))
+        check(t("cards.function_words"), self.skip_function)
+        check(t("cards.proper_nouns"), self.skip_names)
+        check(t("cards.numbers"), self.skip_numbers)
+        check(t("cards.other_alphabet"), self.skip_alphabet)
+
+        row = ctk.CTkFrame(body, fg_color="transparent")
+        row.pack(fill="x", padx=20, pady=(14, 4))
+        labels = self._level_labels()
+        current = next((label for label, level in labels.items() if level == self.known_level.get()), next(iter(labels)))
+        level_label = ctk.StringVar(value=current)
+        ctk.CTkLabel(row, text=t("cards.level"), font=_font(THEME["font_semibold"]), text_color=THEME["white"]).pack(side="left")
+        ctk.CTkOptionMenu(row, values=list(labels), variable=level_label, width=260,
+                          command=lambda label: self.known_level.set(labels[label]),
+                          height=THEME["control_height"], fg_color=THEME["dark"], button_color=THEME["dark"],
+                          button_hover_color=THEME["light"], text_color=THEME["white"], font=_font(),
+                          dropdown_fg_color=THEME["dark"], dropdown_text_color=THEME["white"]).pack(side="right")
+
+        row = ctk.CTkFrame(body, fg_color="transparent")
+        row.pack(fill="x", padx=20, pady=(8, 4))
+        ctk.CTkLabel(row, text=t("cards.max"), font=_font(), text_color=THEME["white"]).pack(side="left")
+        entry = ctk.CTkEntry(row, textvariable=self.max_cards, width=THEME["extended_button_width"],
+                             height=THEME["button_height"], font=_font(), fg_color=THEME["light"],
+                             border_color=THEME["most_dark"], border_width=THEME["border"],
+                             text_color=THEME["white"], corner_radius=THEME["radius"], justify="center")
+        entry.configure(validate="key", validatecommand=(
+            self.register(lambda value: valid_numeric_edit(value, 100000)), "%P"))
+        restore_empty_default(entry, self.max_cards, 0)
+        entry.pack(side="right")
+
+        heading(t("cards.known_heading"), top=18)
+        ctk.CTkLabel(body, text=t("cards.known_hint"), font=_font(size=15), text_color=THEME["white"],
+                     justify="left", wraplength=540).pack(anchor="w", padx=20, pady=(0, 8))
+        buttons = ctk.CTkFrame(body, fg_color="transparent")
+        buttons.pack(fill="x", padx=20, pady=(0, 6))
+        self._button(buttons, t("btn.open_known"), self.open_known_words).pack(side="left")
+        self._button(buttons, t("btn.import_known"), lambda: self.import_known_words(win)).pack(side="right")
+
+        self._button(body, t("btn.close"), win.destroy).pack(pady=(14, 16))
+        win.protocol("WM_DELETE_WINDOW", win.destroy)
+        self._center_dialog(win)
+
+    def _known_dictionary(self):
+        return known_dictionary_path(self.root, LANGUAGES[self.language.get()])
+
+    def open_known_words(self):
+        path = self._known_dictionary()
+        try:
+            if not path.is_file():
+                append_words(path, [])
+            open_path(path)
+        except OSError:
+            messagebox.showerror(t("cards.known_heading"), t("err.open_result"), parent=self)
+
+    def import_known_words(self, parent):
+        source = filedialog.askopenfilename(
+            parent=parent,
+            title=t("btn.import_known"),
+            filetypes=[(t("dialog.word_files"), "*.txt *.csv *.xlsx"), (t("dialog.all_files"), "*.*")],
+        )
+        if not source:
+            return
+        try:
+            count = import_word_file(Path(source), self._known_dictionary())
+        except (OSError, ValueError, UnicodeError):
+            logging.getLogger(__name__).exception("Unable to import known words")
+            messagebox.showerror(t("cards.known_heading"), t("known.import_failed"), parent=parent)
+            return
+        messagebox.showinfo(t("cards.known_heading"), t("known.imported", count=count), parent=parent)
+
     def defaults(self, *_):
         # Загружает начальные настройки из YAML-файла выбранного языка.
         cfg = load_config(self.root / "config" / f"demo_{LANGUAGES[self.language.get()]}.yaml")
@@ -717,6 +845,12 @@ class MainWindow(ctk.CTk):
         self.coverage.set(str(cfg.translation.cumulative_coverage_limit))
         self.specificity.set(str(cfg.translation.specificity_threshold))
         self.occurrences.set(str(cfg.translation.min_book_occurrences))
+        self.skip_function.set(cfg.cards.exclude_function_words)
+        self.skip_names.set(cfg.cards.exclude_proper_nouns)
+        self.skip_numbers.set(cfg.cards.exclude_numbers)
+        self.skip_alphabet.set(cfg.cards.text_alphabet_only)
+        self.known_level.set(cfg.cards.known_level)
+        self.max_cards.set(str(cfg.cards.max_cards))
         self.translation_changed()
 
     def language_changed(self, selected):
@@ -927,7 +1061,10 @@ class MainWindow(ctk.CTk):
                 return
             options = {"cards": self.cards.get(), "machine": self.machine.get(), "known": self.known.get(),
                        "ipa": self.ipa.get(), "coverage": self.coverage.get().replace(",", "."),
-                       "specificity": self.specificity.get().replace(",", "."), "occurrences": self.occurrences.get()}
+                       "specificity": self.specificity.get().replace(",", "."), "occurrences": self.occurrences.get(),
+                       "skip_function": self.skip_function.get(), "skip_names": self.skip_names.get(),
+                       "skip_numbers": self.skip_numbers.get(), "skip_alphabet": self.skip_alphabet.get(),
+                       "known_level": self.known_level.get(), "max_cards": self.max_cards.get()}
             source, path, cfg = build_config(
                 self.root,
                 self.source_path or self.source.get(),

@@ -41,6 +41,7 @@ OUTPUT_EN = {
     # Study list
     "Слово": "Word",
     "Перевод": "Translation",
+    "Знаю": "Known",
     # Review columns and values
     "Алфавит": "Alphabet",
     "Вхождений": "Occurrences",

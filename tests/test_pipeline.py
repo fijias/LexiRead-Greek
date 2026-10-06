@@ -182,7 +182,10 @@ def test_boundary_combinations_complete(project, coverage, threshold, minimum):
     cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
     cfg["translation"] = {"cumulative_coverage_limit": coverage,
                           "specificity_threshold": threshold, "min_book_occurrences": minimum}
-    cfg["cards"] = {"enabled": True, "template": str(Path(__file__).resolve().parents[1] / "table.docx")}
+    cfg["cards"] = {"enabled": True, "template": str(Path(__file__).resolve().parents[1] / "table.docx"),
+                    # The coverage invariant is checked without the card filters.
+                    "exclude_function_words": False, "exclude_proper_nouns": False,
+                    "exclude_numbers": False, "text_alphabet_only": False}
     path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
     pipeline = Pipeline(path, source)
     pipeline.run("run-all")

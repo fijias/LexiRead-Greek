@@ -198,6 +198,18 @@ class GreekLexicon:
 
         return max(sorted(candidates), key=shared_prefix)
 
+    def lemmas_of(self, form):
+        """All dictionary lemmas a form can belong to, whatever its part of speech."""
+        form = fold(form)
+        rows = self.db.execute("SELECT DISTINCT lemma FROM forms WHERE form=?", (form,)).fetchall()
+        if not rows and form == bare(form):
+            rows = self.db.execute("SELECT DISTINCT lemma FROM forms WHERE bare=?", (form,)).fetchall()
+        lemmas = {lemma for (lemma,) in rows}
+        mains = self.db.execute(
+            f"SELECT main FROM alternatives WHERE word IN ({','.join('?' * len(lemmas))})", tuple(lemmas)
+        ).fetchall() if lemmas else []
+        return lemmas | {main for (main,) in mains}
+
     def is_headword(self, lemma):
         return self.db.execute("SELECT 1 FROM headwords WHERE lemma=? LIMIT 1", (lemma,)).fetchone() is not None
 

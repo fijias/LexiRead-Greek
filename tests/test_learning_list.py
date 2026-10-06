@@ -35,7 +35,8 @@ def test_learning_list_matches_printed_card(tmp_path, language):
     back = [p.text for p in document.tables[1].cell(7, 0).paragraphs]
     book = load_workbook(xlsx)
     sheet = book.active
-    assert sheet.max_column == 4
+    assert sheet.max_column == 6
+    assert [c.value for c in sheet[1]][4:] == ["Лемма", "Знаю"]
     assert sheet.max_row == 2
     row = [c.value for c in sheet[2]]
     assert row[0] == front
@@ -43,6 +44,7 @@ def test_learning_list_matches_printed_card(tmp_path, language):
     translations = 2 if language == "es" else 1
     assert row[2] == "\n".join(back[1 : 1 + translations])
     assert (row[3] or "") == (back[-1] if len(back) > 1 + translations else "")
+    assert row[4] == card.lemma and not row[5]
     assert sheet.freeze_panes == "A2"
     book.close()
     # openpyxl accepts metadata that Windows/Excel rejects; inspect the package too.

@@ -42,7 +42,7 @@ CODE_PATHS = {
     "postprocess": ["postprocessing"],
     "validate": ["validation", "grammar/pos_mapping.py"],
     "export": ["export", "grammar/pos_mapping.py", "output_terms.py", "i18n.py"],
-    "cards": ["cards", "translation/selection.py", "export", "text.py", "output_terms.py", "i18n.py"],
+    "cards": ["cards", "translation/selection.py", "export", "text.py", "output_terms.py", "i18n.py", "languages/greek_lexicon.py"],
 }
 PACKAGES = {
     "preprocess": ["pypdf", "python-docx"],
@@ -62,7 +62,7 @@ PACKAGES = {
     "postprocess": [],
     "validate": [],
     "export": ["openpyxl"],
-    "cards": ["python-docx", "openpyxl"],
+    "cards": ["python-docx", "openpyxl", "wordfreq"],
 }
 
 
@@ -336,9 +336,9 @@ class Pipeline:
 
             known_words = None
             if cfg.known_dictionary.enabled:
-                from src.cards.known_words import read_known_words
+                from src.cards.known_words import load_known_words
 
-                known_words = read_known_words(self.known_dictionary_path)
+                known_words = load_known_words(self.known_dictionary_path, self.greek_lexicon_path())
 
             run(
                 *self.outputs["postprocess"],
@@ -378,4 +378,5 @@ class Pipeline:
                 cfg.language,
                 str(self.known_dictionary_path) if cfg.known_dictionary.enabled else None,
                 cfg.machine_translation.enabled,
+                **({"lexicon_path": self.greek_lexicon_path()} if cfg.language == "el" else {}),
             )

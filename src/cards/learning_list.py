@@ -11,10 +11,11 @@ def render_learning_list(cards, target, cards_config, language="es", machine_tra
     rows = []
     for card in cards:
         front, ipa, translations, forms = card_content(card, cards_config.max_forms, language)
-        rows.append([front, ipa, "\n".join(translations), forms])
+        # Lemma identifies the word; a mark in Known adds it to the known-words list on the next run.
+        rows.append([front, ipa, "\n".join(translations), forms, card.lemma, ""])
     write_excel(
         target,
-        [("Список для изучения", ["Слово", "Транскрипция", "Перевод", "Словоформы"], rows)],
+        [("Список для изучения", ["Слово", "Транскрипция", "Перевод", "Словоформы", "Лемма", "Знаю"], rows)],
         Export(),
         description=None if machine_translation else translation_credit(),
     )

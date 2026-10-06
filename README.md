@@ -73,6 +73,19 @@ English and Spanish are installed separately: choose `English` or `Español` in 
 
 The **Review** sheet of the summary table lists the words that automatic analysis marked for manual checking. Its columns "Alphabet" (Greek, Latin, Cyrillic, mixed), "Occurrences", "In study list" and "Example from text" help you filter what matters: check the Greek words from the study list first.
 
+## Fewer, better cards
+
+The **Word filters** button opens the settings that decide which words get cards:
+
+- **Do not make cards for** pronouns, prepositions, articles, conjunctions and particles; proper nouns; numbers; words in another alphabet (Latin words in a Greek text). All four are on by default. These words still count towards text coverage; they just do not get cards.
+- **I already know**: nothing (default) or the ~500 / 1000 / 2000 / 3000 most frequent words of the language. The frequency list comes from wordfreq; for Greek its words are reduced to dictionary lemmas with Wiktionary.
+- **At most N cards**: keeps only the most frequent words (0 = no limit).
+- **My known words**: open your known-words list or import a TXT, CSV or XLSX list, one word per line. Words may be in any form (`είπε`, `δρόμου`): they are matched to their lemmas.
+
+The study list (`greek_list.xlsx`) has a **Known** column: put `x` next to the words you know, and at the next analysis they are added to your known words automatically and drop out of the cards.
+
+After an analysis, the status bar tooltip and the Word filters window show how many cards other coverage levels would give (for example, 70% — 759 · 80% — 1086 · 90% — 1890), so you can choose the coverage that suits you.
+
 ## Detailed instructions
 
 1. Choose a file with text in a foreign language (formats are listed under "File formats"). For TXT, UTF-8 is recommended; other common encodings, including Windows-1253 for Greek, are detected automatically. If the text looks wrong, open the file in Notepad, choose "Save as" and select UTF-8.

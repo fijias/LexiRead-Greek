@@ -61,6 +61,12 @@ def build_config(root, source, language, options):
     cfg.translation.cumulative_coverage_limit = int(options["coverage"])
     cfg.translation.specificity_threshold = float(options["specificity"])
     cfg.translation.min_book_occurrences = int(options["occurrences"])
+    cfg.cards.exclude_function_words = bool(options["skip_function"])
+    cfg.cards.exclude_proper_nouns = bool(options["skip_names"])
+    cfg.cards.exclude_numbers = bool(options["skip_numbers"])
+    cfg.cards.text_alphabet_only = bool(options["skip_alphabet"])
+    cfg.cards.known_level = int(options["known_level"])
+    cfg.cards.max_cards = int(options["max_cards"] or 0)
     # Revalidate assignments before any files are written.
     cfg = Config.model_validate(cfg.model_dump())
     for name in ("cache",):
@@ -79,6 +85,13 @@ def build_config(root, source, language, options):
     cfg.paths.output = str(root / "data" / "output" / "gui" / book)
     config_path = Path(cfg.paths.work) / "run.yaml"
     return source, config_path, cfg
+
+
+def known_dictionary_path(root, language):
+    """The user's known-words workbook for a text language, as the demo config names it."""
+    demo = root / "config" / f"demo_{language}.yaml"
+    known = load_config(demo).known_dictionary.path or f"../my_dictionary_{language}.xlsx"
+    return (demo.parent / known).resolve()
 
 
 def save_config(path, cfg):

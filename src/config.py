@@ -96,6 +96,15 @@ class Cards(Settings):
     long_forms_font_size: int = Field(10, ge=6, le=36)
     long_translation_threshold: int = Field(35, ge=1)
     long_translation_font_size: int = Field(10, ge=6, le=36)
+    # Words that do not get cards; they still count towards text coverage.
+    exclude_function_words: bool = True
+    exclude_proper_nouns: bool = True
+    exclude_numbers: bool = True
+    text_alphabet_only: bool = True
+    # The N most frequent lemmas of the language are treated as known (0 = none).
+    known_level: int = Field(0, ge=0, le=100000)
+    # Most important cards only (0 = no limit).
+    max_cards: int = Field(0, ge=0, le=100000)
 
 
 class KnownDictionary(Settings):

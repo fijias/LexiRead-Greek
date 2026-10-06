@@ -83,7 +83,7 @@ TEXT = {
     "status.ready": ("Status: Set up the analysis", "Статус: Настройка параметров анализа"),
     "status.preparing": ("Status: Preparing the analysis…", "Статус: Подготовка анализа…"),
     "status.error": ("Status: Error", "Статус: Ошибка"),
-    "status.done": ("Status: Done. Lemmas: {lemmas}.", "Статус: Обработка завершена. Лемм: {lemmas}."),
+    "status.done": ("Status: Done. Lemmas: {lemmas}.", "Статус: Готово. Лемм: {lemmas}."),
     "status.done_cards": (" Cards: {cards}.", " Карточек: {cards}."),
     "status.progress": (
         "Status: {stage} · step {completed} of {total} · {elapsed} elapsed",
@@ -208,6 +208,36 @@ TEXT = {
         "Текст PDF {name} извлекается неверными символами (шрифты без таблицы Unicode). "
         "Откройте файл в Calibre или Word и сохраните как TXT или EPUB.",
     ),
+    # Card settings
+    "btn.card_settings": ("Word filters", "Отбор слов"),
+    "lbl.card_settings": ("Known words, filters, card limit", "Известные слова, фильтры, лимит карточек"),
+    "tip.card_settings": (
+        "Which words get no cards, how many words you already know and the maximum number of cards",
+        "Какие слова не попадают в карточки, сколько слов вы уже знаете и максимальное число карточек",
+    ),
+    "cards.title": ("Choosing words for cards", "Отбор слов для карточек"),
+    "cards.skip_heading": ("Do not make cards for", "Не делать карточки для"),
+    "cards.function_words": ("Pronouns, prepositions, articles, conjunctions, particles", "Местоимений, предлогов, артиклей, союзов, частиц"),
+    "cards.proper_nouns": ("Proper nouns", "Имён собственных"),
+    "cards.numbers": ("Numbers", "Чисел"),
+    "cards.other_alphabet": ("Words in another alphabet (Latin in a Greek text)", "Слов в другом алфавите (латиница в греческом тексте)"),
+    "cards.level": ("I already know", "Я уже знаю"),
+    "cards.level_none": ("nothing", "ничего"),
+    "cards.level_n": ("~{n} most frequent words", "~{n} самых частых слов"),
+    "cards.max": ("At most this many cards (0 = no limit)", "Не больше карточек (0 — без ограничения)"),
+    "cards.known_heading": ("My known words", "Мои известные слова"),
+    "cards.known_hint": (
+        "Words can be in any form (είπε, δρόμου). In the word list, put x in the Known column: those words are added here at the next run. You can also import a TXT, CSV or XLSX list, one word per line.",
+        "Слова можно писать в любой форме (είπε, δρόμου). В списке слов поставьте x в столбце «Знаю» — при следующем запуске эти слова добавятся сюда. Можно также импортировать список TXT, CSV или XLSX, по слову в строке.",
+    ),
+    "btn.open_known": ("Open my words", "Открыть мои слова"),
+    "btn.import_known": ("Import from file…", "Импорт из файла…"),
+    "btn.close": ("Close", "Закрыть"),
+    "dialog.word_files": ("Word lists", "Списки слов"),
+    "known.imported": ("Words added to your known words: {count}.", "В ваши известные слова добавлено слов: {count}."),
+    "known.import_failed": ("Could not import the words. Close the file in Excel and try again.", "Не удалось импортировать слова. Закройте файл в Excel и повторите."),
+    "status.imported": (" Known words +{count}.", " Известных слов +{count}."),
+    "status.forecast": ("Last analysis, cards by text coverage: {items}", "Последний анализ, карточек при покрытии текста: {items}"),
     # Installer (scripts/setup.py)
     "setup.downloaded": ("Downloaded {done:.1f} MB", "Загружено {done:.1f} МБ"),
     "setup.downloaded_of": (" of {total:.1f} MB ({share:.0%})", " из {total:.1f} МБ ({share:.0%})"),
@@ -268,6 +298,8 @@ HELP = {
         The summary table contains the lemmas and word forms recognized in the text with their frequency, translations, transcription, grammar information and notes. It is useful for further analysis of the text.
 
         The results folder keeps all output files.
+
+        Word filters decide which words get cards: no cards for pronouns, prepositions, articles, conjunctions, proper nouns, numbers and words in another alphabet; "I already know" treats the most frequent words of the language as known; a card limit keeps only the most frequent words. Put x in the Known column of the word list and those words are added to your known words at the next analysis.
 
 
         Detailed instructions
@@ -343,6 +375,8 @@ HELP = {
         Сводная таблица содержит леммы и словоформы, распознанные программой в тексте, а также их частоту, переводы, транскрипцию, грамматическую информацию и примечания. Она удобна для дополнительного анализа текста.
 
         В папке с результатами хранятся все результирующие файлы.
+
+        «Отбор слов» решает, какие слова попадут в карточки: без местоимений, предлогов, артиклей, союзов, имён собственных, чисел и слов в другом алфавите; «Я уже знаю» считает известными самые частые слова языка; лимит оставляет только самые частые слова. Поставьте x в столбце «Знаю» списка слов — при следующем анализе эти слова добавятся в ваши известные слова.
 
 
         Подробная инструкция

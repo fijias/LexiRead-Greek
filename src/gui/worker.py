@@ -54,7 +54,7 @@ def main(argv=None):
 
         # tqdm and third-party prints must not corrupt the JSON channel.
         with contextlib.redirect_stdout(handler.stream), contextlib.redirect_stderr(handler.stream):
-            pipeline = run_pipeline(args.config, args.source, on_progress=progress)
+            pipeline = run_pipeline(args.config, args.source, on_progress=progress, import_marked=True)
             files = {"folder": str(pipeline.output)}
             if pipeline.config.cards.enabled:
                 files["cards"], files["list"] = map(str, pipeline.outputs["cards"])
@@ -68,6 +68,8 @@ def main(argv=None):
             summary = {
                 "lemmas": len({row["lemma"] for row in lemmas}),
                 "cards": pipeline.manifest.data["stages"].get("cards", {}).get("selected_cards"),
+                "forecast": pipeline.manifest.data["stages"].get("cards", {}).get("forecast"),
+                "imported": pipeline.imported_known,
             }
         send({"type": "done", "files": files, "summary": summary})
         return 0

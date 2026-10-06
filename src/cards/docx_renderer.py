@@ -19,7 +19,7 @@ from src.cards.formatter import (
     get_forms_font_size,
     get_translation_font_size,
 )
-from src.cards.selector import select_cards
+from src.cards.selector import CardPolicy, forecast, select_cards
 from src.storage import atomic_path, file_hash, read_rows
 
 logger = logging.getLogger(__name__)
@@ -172,6 +172,23 @@ def render(cards, template: Path, target: Path, config, language="es", machine_t
     return sheets
 
 
+def assumed_vocabulary(language, level, lexicon_path=None):
+    if not level:
+        return frozenset()
+    from src.cards.level import frequent_lemmas
+
+    lexicon = None
+    if lexicon_path and Path(lexicon_path).is_file():
+        from src.languages.greek_lexicon import GreekLexicon
+
+        lexicon = GreekLexicon(Path(lexicon_path))
+    try:
+        return frozenset(frequent_lemmas(language, level, lexicon))
+    finally:
+        if lexicon:
+            lexicon.close()
+
+
 def run(
     paths,
     template,
@@ -181,13 +198,15 @@ def run(
     language="es",
     known_dictionary=None,
     machine_translation=False,
+    lexicon_path=None,
 ):
     data = {name: read_rows(path) for name, path in paths.items()}
     known_words = set()
     if known_dictionary:
-        from src.cards.known_words import read_known_words
+        from src.cards.known_words import load_known_words
 
-        known_words = read_known_words(Path(known_dictionary))
+        known_words = load_known_words(Path(known_dictionary), lexicon_path)
+    policy = CardPolicy.from_config(cards_config, assumed_vocabulary(language, cards_config.known_level, lexicon_path))
     cards, selection = select_cards(
         data,
         translation_config.cumulative_coverage_limit,
@@ -195,7 +214,10 @@ def run(
         translation_config.min_book_occurrences,
         language,
         known_words,
+        policy,
     )
+    by_coverage = forecast(data, translation_config, language, known_words, policy)
+    logger.info("Прогноз карточек по покрытию: %s", by_coverage)
     sheets = render(cards, template, target, cards_config, language, machine_translation)
     from src.cards.learning_list import list_filename, render_learning_list
 
@@ -234,4 +256,5 @@ def run(
         "page_count": sheets * 2,
         "template": str(template),
         "template_sha256": file_hash(template),
+        "forecast": by_coverage,
     }
