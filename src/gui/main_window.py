@@ -720,7 +720,7 @@ class MainWindow(ctk.CTk):
         github_button = self._button(
             links,
             "GitHub",
-            lambda: webbrowser.open_new_tab("https://github.com/fijias/lexiread-greek"),
+            lambda: webbrowser.open_new_tab("https://github.com/fijias/LexiRead-Greek"),
         )
         github_button.pack(side="right")
         Tooltip(video_button, "Видеоинструкция оригинального приложения WordByHeart на YouTube")

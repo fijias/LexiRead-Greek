@@ -258,7 +258,7 @@ https://en.wiktionary.org/wiki/Wiktionary:Copyrights
 https://creativecommons.org/licenses/by-sa/4.0/"""
     )
     return f"""Создано с помощью LexiRead Greek — изменённой версии WordByHeart, GPL-3.0-only.
-https://github.com/fijias/lexiread-greek
+https://github.com/fijias/LexiRead-Greek
 WordByHeart — Copyright © 2026 Egor Tatarnikov, GPL-3.0-only.
 https://github.com/EgorTatarnikov/WordByHeart
 
