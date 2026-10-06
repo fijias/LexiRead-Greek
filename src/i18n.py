@@ -165,6 +165,10 @@ TEXT = {
         "Не найден список известных слов. Отключите исключение известных слов.",
     ),
     # Worker and process errors
+    "err.missing_module": (
+        "A component is missing ({module}): the app was updated after installation. Run INSTALL.bat to update it.",
+        "Не хватает компонента ({module}): приложение обновилось после установки. Запустите INSTALL.bat, чтобы обновить его.",
+    ),
     "err.encoding": ("Could not read the text. Save the TXT file in UTF-8.", "Не удалось прочитать текст. Сохраните TXT в кодировке UTF-8."),
     "err.nlp": ("Text analysis failed. Run INSTALL.bat to check the NLP model.", "Не удалось выполнить анализ текста. Запустите INSTALL.bat для проверки NLP-модели."),
     "err.ipa": ("Transcription failed. Run INSTALL.bat to check eSpeak NG.", "Не удалось создать транскрипцию. Запустите INSTALL.bat для проверки eSpeak NG."),

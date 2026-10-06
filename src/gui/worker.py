@@ -15,6 +15,8 @@ def friendly_error(stage, exc):
 
     if isinstance(exc, SourceFormatError):
         return str(exc)
+    if isinstance(exc, ModuleNotFoundError):
+        return t("err.missing_module", module=exc.name)
     if isinstance(exc, UnicodeError):
         return t("err.encoding")
     if stage == "nlp":

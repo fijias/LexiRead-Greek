@@ -34,3 +34,10 @@ def test_switch_language_and_persist(tmp_path, monkeypatch):
 def test_unknown_language_is_rejected():
     with pytest.raises(ValueError):
         i18n.set_language("de", save=False)
+
+
+def test_missing_component_asks_to_run_installer():
+    error = ModuleNotFoundError("No module named 'pypdf'", name="pypdf")
+    assert friendly_error("preprocess", error) == (
+        "Не хватает компонента (pypdf): приложение обновилось после установки. Запустите INSTALL.bat, чтобы обновить его."
+    )
