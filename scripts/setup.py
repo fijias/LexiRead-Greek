@@ -272,7 +272,7 @@ def install_models(language="en"):
 
 
 def download_espeak(target):
-    request = urllib.request.Request(ESPEAK_URL, headers={"User-Agent": "WordByHeart-Setup"})
+    request = urllib.request.Request(ESPEAK_URL, headers={"User-Agent": "LexiRead-Setup"})
     part = target.with_suffix(".part")
     try:
         with urllib.request.urlopen(request, timeout=60) as response, part.open("wb") as stream:
@@ -355,7 +355,7 @@ def install_kaikki(language="en"):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="Проверки без скачивания и установки")
-    parser.add_argument("--language", choices=("en", "es", "el"), default="en")
+    parser.add_argument("--language", choices=("en", "es", "el"), default="el")
     args = parser.parse_args(argv)
     (ROOT / "logs").mkdir(parents=True, exist_ok=True)
     logging.basicConfig(

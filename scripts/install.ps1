@@ -47,7 +47,7 @@ function Find-Python {
 }
 
 try {
-    Write-Host "WordByHeart Setup"
+    Write-Host "LexiRead Greek Setup"
     Write-Host "[1/7] Проверка Python..."
     if (-not [Environment]::Is64BitOperatingSystem) { throw "Нужна 64-разрядная Windows." }
     $pythonExe = Find-Python
@@ -96,9 +96,9 @@ try {
         & $pythonExe -m venv $venvDir
         if ($LASTEXITCODE -ne 0) { throw "Не удалось создать .venv." }
     }
-    & $venvPython -m scripts.setup
+    & $venvPython -m scripts.setup --language el
     if ($LASTEXITCODE -ne 0) { throw "Установка не завершена. Проверьте сообщение выше и logs\setup.log; повторите INSTALL.bat." }
-    Write-Host "Установка завершена. Для запуска используйте WordByHeart.bat"
+    Write-Host "Установка завершена. Для запуска используйте LexiRead.bat"
     exit 0
 } catch {
     Write-Host ("Ошибка установки: " + $_.Exception.Message) -ForegroundColor Red

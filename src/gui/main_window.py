@@ -1,4 +1,4 @@
-"""CustomTkinter interface for Word by Heart.
+"""CustomTkinter interface for LexiRead Greek.
 
 Layout and appearance values live in ``THEME`` so the visual design can be
 adjusted without touching the analysis workflow below.
@@ -233,7 +233,7 @@ class MainWindow(ctk.CTk):
         self._progress = None
         self._progress_second = None
         # Размер, системные свойства и общий фон главного окна.
-        self.title("Word by Heart")
+        self.title("LexiRead Greek")
         self.geometry(f"{THEME['window_width']}x{THEME['window_height']}")
         self.resizable(False, False)
         self.configure(
@@ -269,7 +269,7 @@ class MainWindow(ctk.CTk):
         # 4–5 — флажки; 7 — расширенные параметры;
         # 8 — запуск анализа; 9 — кнопки результатов.
         # Заголовок приложения и строка справки.
-        ctk.CTkLabel(body, text="Word by Heart", font=_font(THEME["font_semibold"], THEME["title_size"]), text_color=THEME["white"]).grid(
+        ctk.CTkLabel(body, text="LexiRead Greek", font=_font(THEME["font_semibold"], THEME["title_size"]), text_color=THEME["white"]).grid(
             row=0, column=0, columnspan=3, pady=(4, 10)
         )
         help_button = self._button(body, "Справка", self.show_help, width=THEME["upper_button_width"])
@@ -291,9 +291,9 @@ class MainWindow(ctk.CTk):
                                        text_color=THEME["white"], font=_font())
         self.file_entry.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(12, 0), pady=(5, 5))
         self.controls += [self.file_entry, browse]
-        self._set_source_path(self.root / "data" / "input" / "demo_en.txt")
-        self.language = ctk.StringVar(value="English")
-        self._previous_language = "English"
+        self._set_source_path(self.root / "data" / "input" / "demo_el.txt")
+        self.language = ctk.StringVar(value="Ελληνικά")
+        self._previous_language = "Ελληνικά"
         language_frame = ctk.CTkFrame(
             body,
             fg_color=THEME["most_dark"],
@@ -429,7 +429,7 @@ class MainWindow(ctk.CTk):
             tk.Label(bar, image=self._logo, bg=THEME["most_dark"]).grid(row=0, column=0, padx=(9, 5))
         except (tk.TclError, OSError):
             pass
-        tk.Label(bar, text="Word by Heart", bg=THEME["most_dark"], fg=THEME["white"],
+        tk.Label(bar, text="LexiRead Greek", bg=THEME["most_dark"], fg=THEME["white"],
                  font=(THEME["font"], 12)).grid(row=0, column=1, sticky="w")
         for col, (symbol, command) in enumerate((("–", self._minimize), ("×", self.close)), 2):
             button = tk.Label(bar, text=symbol, bg=THEME["most_dark"], fg=THEME["white"],
@@ -613,19 +613,19 @@ class MainWindow(ctk.CTk):
             return
         win = ctk.CTkToplevel(self)
         self._help_window = win
-        win.title("Справка — Word by Heart")
+        win.title("Справка — LexiRead Greek")
         win.geometry("760x520")
         win.transient(self)
         win.protocol("WM_DELETE_WINDOW", win.destroy)
-        body = self._dialog_body(win, "Справка — Word by Heart", win.destroy, show_minimize=False)
+        body = self._dialog_body(win, "Справка — LexiRead Greek", win.destroy, show_minimize=False)
         ctk.CTkLabel(body, text="Справка", font=_font(THEME["font_semibold"], 21), text_color=THEME["white"]).pack(padx=20, pady=(18, 8))
-        text = """        Word by Heart – это приложение для подготовки лексики к изучению, необходимой для прочтения конкретной книги или просмотра сериала на иностранном языке.
+        text = """        LexiRead Greek (Learn by reading) – изменённая версия приложения WordByHeart (автор – Egor Tatarnikov) с поддержкой греческого языка. Это приложение для подготовки лексики к изучению, необходимой для прочтения конкретной книги или просмотра сериала на иностранном языке.
         Приложение создает из текста готовый набор слов для изучения и повторения.
         
 
         Краткая инструкция 
 
-        1. Выберите txt-файл (для тестового запуска уже выбран файл demo_en.txt)
+        1. Выберите txt-файл (для тестового запуска уже выбран файл demo_el.txt)
         2. Нажмите «Начать анализ».
         3. Откройте «Список слов», «Карточки», «Сводную таблицу» и «Папку с результатами»
 
@@ -720,10 +720,10 @@ class MainWindow(ctk.CTk):
         github_button = self._button(
             links,
             "GitHub",
-            lambda: webbrowser.open_new_tab("https://github.com/EgorTatarnikov/WordByHeart"),
+            lambda: webbrowser.open_new_tab("https://github.com/fijias/lexiread-greek"),
         )
         github_button.pack(side="right")
-        Tooltip(video_button, "Посмотреть видеоинструкцию на YouTube по работе с приложением")
+        Tooltip(video_button, "Видеоинструкция оригинального приложения WordByHeart на YouTube")
         Tooltip(github_button, "Ссылка на репозиторий проекта и лицензию")
         self._center_dialog(win)
 
@@ -997,7 +997,7 @@ class MainWindow(ctk.CTk):
                             button.configure(state="normal" if available else "disabled")
                     else:
                         self.status.configure(text="Статус: Ошибка")
-                        messagebox.showerror("Word by Heart", event["message"], parent=self)
+                        messagebox.showerror("LexiRead Greek", event["message"], parent=self)
         except queue.Empty:
             pass
         if self._progress:

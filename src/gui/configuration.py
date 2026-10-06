@@ -11,6 +11,7 @@ from src.config import Config, load_config
 LANGUAGES = {"English": "en", "Español": "es", "Ελληνικά": "el"}
 # Languages installed on demand: (genitive, accusative, nominative, installer).
 OPTIONAL_LANGUAGES = {
+    "en": ("английского", "английский", "Английский", "INSTALL_ENGLISH.bat"),
     "es": ("испанского", "испанский", "Испанский", "INSTALL_SPANISH.bat"),
     "el": ("греческого", "греческий", "Греческий", "INSTALL_GREEK.bat"),
 }

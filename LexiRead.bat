@@ -8,5 +8,5 @@ if errorlevel 1 goto missing
 start "" ".venv\Scripts\pythonw.exe" "%~dp0scripts\launch.pyw"
 exit /b 0
 :missing
-powershell.exe -NoProfile -Command "Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('Run INSTALL.bat to install or repair WordByHeart.','WordByHeart')" >nul
+powershell.exe -NoProfile -Command "Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('Run INSTALL.bat to install or repair LexiRead Greek.','LexiRead Greek')" >nul
 exit /b 1

@@ -12,6 +12,6 @@ try:
     raise SystemExit(main())
 except Exception:
     if os.name == "nt":
-        ctypes.windll.user32.MessageBoxW(None, "Не удалось запустить WordByHeart. "
+        ctypes.windll.user32.MessageBoxW(None, "Не удалось запустить LexiRead Greek. "
                                         "Запустите INSTALL.bat для восстановления установки.",
-                                        "WordByHeart", 0x10)
+                                        "LexiRead Greek", 0x10)

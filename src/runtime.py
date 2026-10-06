@@ -25,7 +25,7 @@ def configure_logging(root=ROOT, level=logging.INFO):
     directory = root / "logs"
     directory.mkdir(parents=True, exist_ok=True)
     handler = RotatingFileHandler(
-        directory / "wordbyheart.log", maxBytes=5_000_000, backupCount=2, encoding="utf-8"
+        directory / "lexiread.log", maxBytes=5_000_000, backupCount=2, encoding="utf-8"
     )
     handler.setFormatter(PrivateFormatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     logging.getLogger().addHandler(handler)

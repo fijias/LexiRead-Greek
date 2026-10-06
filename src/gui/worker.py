@@ -34,7 +34,7 @@ def friendly_error(stage, exc):
         return "Не удалось выполнить перевод через модель. Проверьте API key, доступ к модели и интернет."
     if isinstance(exc, PermissionError):
         return "Нет доступа к файлу. Закройте открытые таблицы и карточки и повторите запуск."
-    return "Не удалось завершить обработку. Подробности сохранены в logs/wordbyheart.log."
+    return "Не удалось завершить обработку. Подробности сохранены в logs/lexiread.log."
 
 
 def main(argv=None):

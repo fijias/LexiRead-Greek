@@ -16,7 +16,7 @@ def configure_windows_app_identity():
     try:
         import ctypes
 
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("WordByHeart.WordByHeart")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("LexiRead.Greek")
     except (AttributeError, OSError):
         logging.getLogger(__name__).warning("Windows taskbar identity could not be configured")
 
@@ -60,8 +60,8 @@ def main():
             from tkinter import messagebox
 
             messagebox.showerror(
-                "Word by Heart",
-                "Не удалось выполнить действие. Подробности: logs/wordbyheart.log.",
+                "LexiRead Greek",
+                "Не удалось выполнить действие. Подробности: logs/lexiread.log.",
                 parent=app,
             )
 
@@ -75,8 +75,8 @@ def main():
 
             ctypes.windll.user32.MessageBoxW(
                 None,
-                "Не удалось запустить WordByHeart. Запустите INSTALL.bat для восстановления установки.",
-                "WordByHeart",
+                "Не удалось запустить LexiRead Greek. Запустите INSTALL.bat для восстановления установки.",
+                "LexiRead Greek",
                 0x10,
             )
         return 1

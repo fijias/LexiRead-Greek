@@ -251,13 +251,14 @@ def make_attribution(source_name, machine_translation=False):
         "Переводы: LLM"
         if machine_translation
         else """Переводы: Kaikki.org / участники Wiktionary.
-Данные автоматически отобраны и обработаны программой WordByHeart.
+Данные автоматически отобраны и обработаны программой LexiRead Greek.
 Лицензия: CC BY-SA 4.0.
 https://kaikki.org/
 https://en.wiktionary.org/wiki/Wiktionary:Copyrights
 https://creativecommons.org/licenses/by-sa/4.0/"""
     )
-    return f"""Создано с помощью WordByHeart.
+    return f"""Создано с помощью LexiRead Greek — изменённой версии WordByHeart, GPL-3.0-only.
+https://github.com/fijias/lexiread-greek
 WordByHeart — Copyright © 2026 Egor Tatarnikov, GPL-3.0-only.
 https://github.com/EgorTatarnikov/WordByHeart
 
