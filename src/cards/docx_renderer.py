@@ -106,14 +106,15 @@ def render(cards, template: Path, target: Path, config, language="es", machine_t
         raise ValueError("cards_per_page must equal rows * columns")
     sheets = math.ceil(len(cards) / config.cards_per_page) if cards else 0
     document = Document(template)
-    from src.export.excel_exporter import KAIKKI_TRANSLATION_CREDIT
+    from src.export.excel_exporter import translation_credit
+    from src.output_terms import out
 
-    document.core_properties.comments = "" if machine_translation else KAIKKI_TRANSLATION_CREDIT
+    document.core_properties.comments = "" if machine_translation else translation_credit()
     if sheets == 0:
         for element in list(document.element.body):
             if element.tag != qn("w:sectPr"):
                 document.element.body.remove(element)
-        document.add_paragraph("Нет слов для изучения при выбранных настройках.")
+        document.add_paragraph(out("Нет слов для изучения при выбранных настройках."))
         target.parent.mkdir(parents=True, exist_ok=True)
         document.save(target)
         return 0

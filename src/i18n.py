@@ -204,6 +204,46 @@ TEXT = {
         "Текст PDF {name} извлекается неверными символами (шрифты без таблицы Unicode). "
         "Откройте файл в Calibre или Word и сохраните как TXT или EPUB.",
     ),
+    # Installer (scripts/setup.py)
+    "setup.downloaded": ("Downloaded {done:.1f} MB", "Загружено {done:.1f} МБ"),
+    "setup.downloaded_of": (" of {total:.1f} MB ({share:.0%})", " из {total:.1f} МБ ({share:.0%})"),
+    "setup.kill_failed": ("Could not stop the process tree {pid}", "Не удалось завершить дерево процесса {pid}"),
+    "setup.pip_timeout": ("Updating pip timed out; using the installed version.", "Превышено время обновления pip; используется установленная версия."),
+    "setup.pip_warning": ("Warning: pip could not be updated. Installation continues with pip {version}.", "Предупреждение: pip не удалось обновить. Установка продолжится с pip {version}."),
+    "setup.libs_ready": ("Libraries are already installed.", "Библиотеки уже установлены."),
+    "setup.libs_failed": ("Could not install the dependencies. Check the connection to PyPI and free disk space.", "Не удалось установить зависимости. Проверьте подключение к PyPI и свободное место."),
+    "setup.repairing": ("Repairing damaged libraries...", "Восстановление повреждённых библиотек..."),
+    "setup.repair_failed": ("Could not repair the libraries. Details: logs/setup.log.", "Не удалось восстановить библиотеки. Подробности: logs/setup.log."),
+    "setup.imports_failed": ("Import checks fail. Details: logs/setup.log.", "Не проходят проверки импортов. Подробности: logs/setup.log."),
+    "setup.conflict": ("Dependency conflict detected: logs/setup.log.", "Обнаружен конфликт зависимостей: logs/setup.log."),
+    "setup.model_ready": ("{model}: ready.", "{model}: готово."),
+    "setup.model_installing": ("Installing/repairing {model}...\nThe model is large. Download progress is shown below.", "Установка/восстановление {model}...\nМодель имеет большой размер. Ход загрузки будет показан ниже."),
+    "setup.model_failed": ("Could not install {model}. Check access to github.com/explosion/spacy-models.", "Не удалось установить {model}. Проверьте доступ к github.com/explosion/spacy-models."),
+    "setup.model_broken": ("The model {model} does not load. Details: logs/setup.log.", "Модель {model} не загружается. Подробности: logs/setup.log."),
+    "setup.unsafe_redirect": ("The eSpeak download was redirected to an insecure URL.", "Загрузка eSpeak перенаправлена на небезопасный URL."),
+    "setup.espeak_ready": ("eSpeak NG: transcription checked.", "eSpeak NG: транскрипция проверена."),
+    "setup.espeak_system": ("Install eSpeak NG system-wide; automatic installation is for Windows only.", "Установите системный eSpeak NG; автоматическая установка предназначена для Windows."),
+    "setup.espeak_download": ("Downloading the official eSpeak NG 1.52.0...", "Загрузка официального eSpeak NG 1.52.0..."),
+    "setup.espeak_failed": (
+        "Could not unpack/run eSpeak NG automatically. Open .local/downloads/espeak-ng-1.52.0.msi for a standard "
+        "installation (Windows may ask for administrator rights), then run INSTALL.bat again.",
+        "Не удалось распаковать/запустить eSpeak NG автоматически. Откройте .local/downloads/espeak-ng-1.52.0.msi "
+        "для стандартной установки (Windows может запросить права администратора), затем повторите INSTALL.bat.",
+    ),
+    "setup.kaikki_failed": ("Could not install Kaikki. Check the internet connection and run INSTALL.bat again.", "Не удалось установить Kaikki. Проверьте интернет и повторите INSTALL.bat."),
+    "setup.check_help": ("Checks only, without downloading or installing", "Проверки без скачивания и установки"),
+    "setup.deps_not_ready": ("Python dependencies are not ready.", "Не готовы Python-зависимости."),
+    "setup.model_not_ready": ("The model {model} is not ready.", "Не готова модель {model}."),
+    "setup.espeak_not_ready": ("eSpeak NG is not ready.", "Не готов eSpeak NG."),
+    "setup.language_not_ready": ("Language resources are not installed: {language}.", "Не установлены ресурсы языка: {language}."),
+    "setup.use_installer": ("Use INSTALL.bat: setup must run inside .venv.", "Используйте INSTALL.bat: установка должна выполняться внутри .venv."),
+    "setup.step_libs": ("Checking libraries", "Проверка библиотек"),
+    "setup.step_model": ("Checking the NLP model", "Проверка NLP-модели"),
+    "setup.step_espeak": ("Checking eSpeak NG", "Проверка eSpeak NG"),
+    "setup.step_kaikki": ("Installing Kaikki dictionaries", "Установка словарей Kaikki"),
+    "setup.step_gui": ("[7/7] Checking the interface...", "[7/7] Проверка интерфейса..."),
+    "setup.gui_failed": ("Could not open the GUI. Check Tcl/Tk.", "Не удалось открыть GUI. Проверьте Tcl/Tk."),
+    "setup.error": ("Error: {error}", "Ошибка: {error}"),
 }
 
 HELP = {

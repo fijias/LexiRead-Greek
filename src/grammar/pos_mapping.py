@@ -62,8 +62,29 @@ GREEK_MORPH = {
 }
 
 
-def format_morph(raw, language="es"):
-    names = GREEK_MORPH if language == "el" else MORPH
+# Feature names for result files in English.
+MORPH_EN = {
+    "Gender": {"Fem": "feminine", "Masc": "masculine", "Neut": "neuter", "Com": "common gender"},
+    "Case": {"Nom": "nominative", "Gen": "genitive", "Acc": "accusative", "Voc": "vocative", "Dat": "dative"},
+    "Aspect": {"Imp": "imperfective", "Perf": "perfective"},
+    "Voice": {"Act": "active", "Pass": "passive"},
+    "Number": {"Sing": "singular", "Plur": "plural"},
+    "Person": {"1": "1st person", "2": "2nd person", "3": "3rd person"},
+    "Mood": {"Ind": "indicative", "Sub": "subjunctive", "Imp": "imperative", "Cnd": "conditional"},
+    "Tense": {"Pres": "present", "Past": "past", "Imp": "imperfect", "Fut": "future", "Pqp": "pluperfect"},
+    "VerbForm": {"Inf": "infinitive", "Fin": "finite", "Ger": "gerund", "Part": "participle", "Conv": "converb"},
+    "Definite": {"Def": "definite", "Ind": "indefinite"},
+    "PronType": {
+        "Art": "article", "Prs": "personal", "Rel": "relative", "Int": "interrogative",
+        "Dem": "demonstrative", "Ind": "indefinite", "Neg": "negative", "Tot": "total",
+    },
+    "Polarity": {"Neg": "negative"},
+    "Reflex": {"Yes": "reflexive"},
+}
+
+
+def format_morph(raw, language="es", output="ru"):
+    names = MORPH_EN if output == "en" else GREEK_MORPH if language == "el" else MORPH
     result = []
     for key, values in parse_morph(raw).items():
         result.append(

@@ -1,6 +1,7 @@
 """Plain-language view of validation results; diagnostics remain in Parquet."""
 
 from src.grammar.pos_mapping import POS_RU
+from src.output_terms import out
 from src.text import script
 
 REVIEW_COLUMNS = [
@@ -91,18 +92,18 @@ def make_review_rows(data):
         in_list = bool(word) and translation.get("translation_eligible", False) and translation.get("error") != "known word excluded"
         problem, action = describe(issue)
         row = (
-            word or "Весь словарь",
-            SCRIPT_RU[script(word)] if word else "—",
-            POS_RU.get(entry.get("pos"), "—"),
+            word or out("Весь словарь"),
+            out(SCRIPT_RU[script(word)]) if word else "—",
+            out(POS_RU.get(entry.get("pos"), "—")),
             entry.get("count", ""),
-            "Да" if in_list else "Нет",
-            "Ошибка" if issue["severity"] == "error" else "Нужно проверить",
-            problem,
-            action,
+            out("Да" if in_list else "Нет"),
+            out("Ошибка" if issue["severity"] == "error" else "Нужно проверить"),
+            out(problem),
+            out(action),
             entry["contexts"][0] if entry.get("contexts") else "",
         )
         if row not in seen:
             rows.append(list(row))
             seen.add(row)
-    rows.sort(key=lambda r: (r[5] != "Ошибка", r[4] != "Да", -(r[3] or 0), r[0], r[6]))
-    return rows or [["—", "—", "—", "", "—", "Замечаний нет", "Нет замечаний, требующих ручной проверки.", "—", ""]]
+    rows.sort(key=lambda r: (r[5] != out("Ошибка"), r[4] != out("Да"), -(r[3] or 0), r[0], r[6]))
+    return rows or [["—", "—", "—", "", "—", out("Замечаний нет"), out("Нет замечаний, требующих ручной проверки."), "—", ""]]

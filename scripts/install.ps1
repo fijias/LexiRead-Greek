@@ -6,6 +6,14 @@ $env:PYTHONIOENCODING = "utf-8"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
+$settingsPath = Join-Path $projectRoot ".local\settings.json"
+$uiLanguage = (Get-UICulture).TwoLetterISOLanguageName
+if (Test-Path -LiteralPath $settingsPath) {
+    try { $saved = (Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json).ui_language; if ($saved) { $uiLanguage = $saved } } catch {}
+}
+$env:LEXIREAD_UI_LANG = $(if ($uiLanguage -eq "ru") { "ru" } else { "en" })
+function L([string]$En, [string]$Ru) { if ($env:LEXIREAD_UI_LANG -eq "ru") { return $Ru } return $En }
+
 function Test-Python([string]$Exe) {
     if (-not (Test-Path -LiteralPath $Exe -PathType Leaf)) { return $null }
     try {
@@ -48,11 +56,11 @@ function Find-Python {
 
 try {
     Write-Host "LexiRead Greek Setup"
-    Write-Host "[1/7] Проверка Python..."
-    if (-not [Environment]::Is64BitOperatingSystem) { throw "Нужна 64-разрядная Windows." }
+    Write-Host (L "[1/7] Checking Python..." "[1/7] Проверка Python...")
+    if (-not [Environment]::Is64BitOperatingSystem) { throw (L "64-bit Windows is required." "Нужна 64-разрядная Windows.") }
     $pythonExe = Find-Python
     if (-not $pythonExe) {
-        Write-Host "Совместимый Python не найден. Устанавливается официальный Python 3.13.15 (x64) для текущего пользователя."
+        Write-Host (L "No compatible Python found. Installing the official Python 3.13.15 (x64) for the current user." "Совместимый Python не найден. Устанавливается официальный Python 3.13.15 (x64) для текущего пользователя.")
         $downloadDir = Join-Path $projectRoot ".local\downloads"
         New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
         $installer = Join-Path $downloadDir "python-3.13.15-amd64.exe"
@@ -60,17 +68,17 @@ try {
         Invoke-WebRequest -UseBasicParsing -Uri "https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe" -OutFile $installer -TimeoutSec 300
         $expected = "edec09c4853aeae9ac36efb8c9f95b6b8e2fee65eee56d9767a8b7c69c574403"
         if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
-            throw "Контрольная сумма установщика Python не совпала. Повторите INSTALL.bat."
+            throw (L "The Python installer checksum does not match. Run INSTALL.bat again." "Контрольная сумма установщика Python не совпала. Повторите INSTALL.bat.")
         }
         $signature = Get-AuthenticodeSignature -LiteralPath $installer
-        if ($signature.Status -ne "Valid") { throw "Не удалось проверить подпись установщика Python." }
+        if ($signature.Status -ne "Valid") { throw (L "Could not verify the Python installer signature." "Не удалось проверить подпись установщика Python.") }
         $installProcess = Start-Process -FilePath $installer -ArgumentList "/quiet InstallAllUsers=0 PrependPath=0 Include_launcher=0 Include_test=0 Include_tcltk=1 Include_pip=1" -WindowStyle Hidden -Wait -PassThru
-        if ($installProcess.ExitCode -notin @(0, 3010)) { throw "Python: код установки $($installProcess.ExitCode)." }
+        if ($installProcess.ExitCode -notin @(0, 3010)) { throw ((L "Python: installer exit code " "Python: код установки ") + "$($installProcess.ExitCode).") }
         $pythonExe = Find-Python
-        if (-not $pythonExe) { throw "Python не найден после установки. Установите x64 Python 3.11–3.13 с python.org (с Tcl/Tk), затем повторите INSTALL.bat." }
+        if (-not $pythonExe) { throw (L "Python not found after installation. Install x64 Python 3.11-3.13 from python.org (with Tcl/Tk), then run INSTALL.bat again." "Python не найден после установки. Установите x64 Python 3.11–3.13 с python.org (с Tcl/Tk), затем повторите INSTALL.bat.") }
     }
     Write-Host "Python: $pythonExe"
-    Write-Host "[2/7] Проверка виртуального окружения..."
+    Write-Host (L "[2/7] Checking the virtual environment..." "[2/7] Проверка виртуального окружения...")
     $venvDir = Join-Path $projectRoot ".venv"
     $venvPython = Join-Path $venvDir "Scripts\python.exe"
     $valid = Test-Python $venvPython
@@ -82,25 +90,25 @@ try {
         if (Test-Path -LiteralPath $venvDir) {
             # Preserve damaged environments. Verify containment before moving.
             $resolved = (Resolve-Path -LiteralPath $venvDir).Path
-            if ((Split-Path -Parent $resolved) -ne $projectRoot) { throw "Небезопасный путь .venv." }
-            if ((Get-Item -LiteralPath $venvDir).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw ".venv является ссылкой. Используйте обычный локальный каталог." }
+            if ((Split-Path -Parent $resolved) -ne $projectRoot) { throw (L "Unsafe .venv path." "Небезопасный путь .venv.") }
+            if ((Get-Item -LiteralPath $venvDir).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw (L ".venv is a link. Use a regular local folder." ".venv является ссылкой. Используйте обычный локальный каталог.") }
             # Choose a base interpreter outside .venv before moving its files.
             $baseExe = & $pythonExe -c "import sys; print(sys._base_executable)"
             $pythonExe = Test-Python ($baseExe | Select-Object -Last 1)
-            if (-not $pythonExe) { throw "Не найден базовый Python. Установите Python и повторите INSTALL.bat." }
+            if (-not $pythonExe) { throw (L "Base Python not found. Install Python and run INSTALL.bat again." "Не найден базовый Python. Установите Python и повторите INSTALL.bat.") }
             $backup = Join-Path $projectRoot (".venv.broken-" + [guid]::NewGuid().ToString("N"))
-            if ((Split-Path -Parent $backup) -ne $projectRoot) { throw "Небезопасный путь резервной копии." }
+            if ((Split-Path -Parent $backup) -ne $projectRoot) { throw (L "Unsafe backup path." "Небезопасный путь резервной копии.") }
             Move-Item -LiteralPath $resolved -Destination $backup
-            Write-Host "Старое окружение сохранено в $backup"
+            Write-Host ((L "The old environment is saved in " "Старое окружение сохранено в ") + $backup)
         }
         & $pythonExe -m venv $venvDir
-        if ($LASTEXITCODE -ne 0) { throw "Не удалось создать .venv." }
+        if ($LASTEXITCODE -ne 0) { throw (L "Could not create .venv." "Не удалось создать .venv.") }
     }
     & $venvPython -m scripts.setup --language el
-    if ($LASTEXITCODE -ne 0) { throw "Установка не завершена. Проверьте сообщение выше и logs\setup.log; повторите INSTALL.bat." }
-    Write-Host "Установка завершена. Для запуска используйте LexiRead.bat"
+    if ($LASTEXITCODE -ne 0) { throw (L "Setup did not finish. See the message above and logs\setup.log; run INSTALL.bat again." "Установка не завершена. Проверьте сообщение выше и logs\setup.log; повторите INSTALL.bat.") }
+    Write-Host (L "Setup complete. Start the app with LexiRead.bat" "Установка завершена. Для запуска используйте LexiRead.bat")
     exit 0
 } catch {
-    Write-Host ("Ошибка установки: " + $_.Exception.Message) -ForegroundColor Red
+    Write-Host ((L "Setup error: " "Ошибка установки: ") + $_.Exception.Message) -ForegroundColor Red
     exit 1
 }

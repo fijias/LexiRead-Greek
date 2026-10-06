@@ -8,14 +8,14 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from src.export.review import REVIEW_COLUMNS, make_review_rows
-from src.grammar.pos_mapping import POS_RU
+from src.grammar.pos_mapping import POS_RU, format_morph
+from src.i18n import get_language
+from src.output_terms import out
 from src.lemma_groups import group_lemmas
 from src.storage import atomic_path, read_rows
 
 logger = logging.getLogger(__name__)
 
-KAIKKI_TRANSLATION_CREDIT = "Переводы: Kaikki.org / Wiktionary contributors, CC BY-SA 4.0. "
-WORDFREQ_CREDIT = "Частотность: wordfreq, Copyright 2022 Robyn Speer."
 
 LEMMA_COLUMNS = [
     "Ранг",
@@ -56,6 +56,14 @@ FORM_COLUMNS = [
 ]
 
 
+def morph_description(form, grammar):
+    """Grammar stage text is Russian; English result files describe the same UD features."""
+    if get_language() == "ru" or not grammar["morph_description"]:
+        return grammar["morph_description"]
+    pos = out(POS_RU.get(form["pos"], form["pos"]))
+    return pos + ": " + " | ".join(format_morph(m, output="en") for m in form["morph_variants"])
+
+
 def make_tables(data):
     lg = {r["id"]: r for r in data["lemma_grammar"]}
     fg = {r["id"]: r for r in data["form_grammar"]}
@@ -81,8 +89,8 @@ def make_tables(data):
                 group["specificity"],
                 r["chunk_count"],
                 ipa.get(r["lemma"], ""),
-                POS_RU.get(r["pos"], r["pos"]),
-                g["grammatical_gender"],
+                out(POS_RU.get(r["pos"], r["pos"])),
+                out(g["grammatical_gender"]),
                 g["grammar_forms"],
                 g["infinitive"],
                 g["conjugation_group"],
@@ -104,8 +112,8 @@ def make_tables(data):
                 r.get("reference_frequency", 0.0),
                 ipa.get(r["form"], ""),
                 r["lemma"],
-                POS_RU.get(r["pos"], r["pos"]),
-                g["morph_description"],
+                out(POS_RU.get(r["pos"], r["pos"])),
+                morph_description(r, g),
                 t["ru"],
                 t["en"],
                 r["contexts"][0] if r["contexts"] else "",
@@ -174,8 +182,8 @@ def write_excel(target, tables, config, language=None, attribution=None, descrip
             raise ValueError(f"{name}: превышен лимит строк Excel")
         if language == "en" and name in {"Леммы", "Словоформы"}:
             headers, rows = english_columns(headers, rows)
-        sheet = book.create_sheet(name)
-        sheet.append(headers)
+        sheet = book.create_sheet(out(name))
+        sheet.append([out(header) for header in headers])
         widths = []
         for col, header in enumerate(headers, 1):
             width = (
@@ -235,7 +243,7 @@ def write_excel(target, tables, config, language=None, attribution=None, descrip
                 409, max(32 if row[0].row == 1 else 30, line_count * 15)
             )
     if attribution:
-        sheet = book.create_sheet("Атрибуция")
+        sheet = book.create_sheet(out("Атрибуция"))
         sheet.column_dimensions["A"].width = 110
         for row, line in enumerate(attribution.splitlines(), 1):
             cell = sheet.cell(row=row, column=1, value=line)
@@ -246,18 +254,27 @@ def write_excel(target, tables, config, language=None, attribution=None, descrip
     book.close()
 
 
-def make_attribution(source_name, machine_translation=False):
-    translation = (
-        "Переводы: LLM"
-        if machine_translation
-        else """Переводы: Kaikki.org / участники Wiktionary.
+def translation_credit():
+    return out_credit("Переводы: Kaikki.org / Wiktionary contributors, CC BY-SA 4.0. ",
+                      "Translations: Kaikki.org / Wiktionary contributors, CC BY-SA 4.0. ")
+
+
+def wordfreq_credit():
+    return out_credit("Частотность: wordfreq, Copyright 2022 Robyn Speer.",
+                      "Word frequencies: wordfreq, Copyright 2022 Robyn Speer.")
+
+
+def out_credit(russian, english):
+    return russian if get_language() == "ru" else english
+
+
+ATTRIBUTION = {
+    "ru": {
+        "llm": "Переводы: LLM",
+        "kaikki": """Переводы: Kaikki.org / участники Wiktionary.
 Данные автоматически отобраны и обработаны программой LexiRead Greek.
-Лицензия: CC BY-SA 4.0.
-https://kaikki.org/
-https://en.wiktionary.org/wiki/Wiktionary:Copyrights
-https://creativecommons.org/licenses/by-sa/4.0/"""
-    )
-    return f"""Создано с помощью LexiRead Greek — изменённой версии WordByHeart, GPL-3.0-only.
+Лицензия: CC BY-SA 4.0.""",
+        "body": """Создано с помощью LexiRead Greek — изменённой версии WordByHeart, GPL-3.0-only.
 https://github.com/fijias/LexiRead-Greek
 WordByHeart — Copyright © 2026 Egor Tatarnikov, GPL-3.0-only.
 https://github.com/EgorTatarnikov/WordByHeart
@@ -275,18 +292,57 @@ https://github.com/espeak-ng/espeak-ng
 NLP-анализ: spaCy.
 https://spacy.io/
 
-Исходный текст: {source_name}.
+Исходный текст: {source}.
 Права на исходный текст принадлежат его автору или правообладателю.
-""".lstrip()
+""",
+    },
+    "en": {
+        "llm": "Translations: LLM",
+        "kaikki": """Translations: Kaikki.org / Wiktionary contributors.
+The data were selected and processed automatically by LexiRead Greek.
+License: CC BY-SA 4.0.""",
+        "body": """Created with LexiRead Greek, a modified version of WordByHeart, GPL-3.0-only.
+https://github.com/fijias/LexiRead-Greek
+WordByHeart — Copyright © 2026 Egor Tatarnikov, GPL-3.0-only.
+https://github.com/EgorTatarnikov/WordByHeart
+
+{translation}
+
+General word frequencies: wordfreq.
+Copyright © 2022 Robyn Speer.
+https://github.com/rspeer/wordfreq
+https://github.com/rspeer/wordfreq/blob/master/NOTICE.md
+
+IPA transcription: eSpeak NG.
+https://github.com/espeak-ng/espeak-ng
+
+NLP analysis: spaCy.
+https://spacy.io/
+
+Source text: {source}.
+The rights to the source text belong to its author or rights holder.
+""",
+    },
+}
+KAIKKI_LINKS = """
+https://kaikki.org/
+https://en.wiktionary.org/wiki/Wiktionary:Copyrights
+https://creativecommons.org/licenses/by-sa/4.0/"""
+
+
+def make_attribution(source_name, machine_translation=False):
+    texts = ATTRIBUTION[get_language()]
+    translation = texts["llm"] if machine_translation else texts["kaikki"] + KAIKKI_LINKS
+    return texts["body"].format(translation=translation, source=source_name)
 
 
 def run(paths, output, config, language="es", source_name="", machine_translation=False):
     tables = make_tables({key: read_rows(path) for key, path in paths.items()})
     output.mkdir(parents=True, exist_ok=True)
     attribution = make_attribution(source_name, machine_translation)
-    description = WORDFREQ_CREDIT
+    description = wordfreq_credit()
     if not machine_translation:
-        description = KAIKKI_TRANSLATION_CREDIT + description
+        description = translation_credit() + description
     with atomic_path(output / "ATTRIBUTION.txt") as tmp:
         tmp.write_text(attribution, encoding="utf-8")
     if config.xlsx:
@@ -304,7 +360,7 @@ def run(paths, output, config, language="es", source_name="", machine_translatio
         for (_, headers, rows), name in zip(tables[:2], ("lemmas.csv", "forms.csv")):
             with atomic_path(output / name) as tmp, tmp.open("w", encoding="utf-8", newline="") as stream:
                 writer = csv.writer(stream)
-                writer.writerow(headers)
+                writer.writerow([out(header) for header in headers])
                 for row in rows:
                     writer.writerow(
                         [

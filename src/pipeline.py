@@ -5,6 +5,7 @@ from pathlib import Path
 from filelock import FileLock
 
 from src.config import load_config
+from src.i18n import get_language
 from src.languages import get_profile
 from src.manifest import DEPENDENCIES, Manifest
 from src.storage import digest, file_hash
@@ -40,8 +41,8 @@ CODE_PATHS = {
     "translate": ["translation", "cache.py"],
     "postprocess": ["postprocessing"],
     "validate": ["validation", "grammar/pos_mapping.py"],
-    "export": ["export", "grammar/pos_mapping.py"],
-    "cards": ["cards", "translation/selection.py", "export", "text.py"],
+    "export": ["export", "grammar/pos_mapping.py", "output_terms.py", "i18n.py"],
+    "cards": ["cards", "translation/selection.py", "export", "text.py", "output_terms.py", "i18n.py"],
 }
 PACKAGES = {
     "preprocess": ["pypdf", "python-docx"],
@@ -144,9 +145,16 @@ class Pipeline:
                 "language": cfg["language"],
                 "enabled": {k: cfg[k]["enabled"] for k in ("grammar", "pronunciation", "machine_translation")},
             },
-            "export": {"language": cfg["language"], "export": cfg["export"], "output": str(self.output)},
+            "export": {
+                "language": cfg["language"],
+                "export": cfg["export"],
+                "output": str(self.output),
+                # Result files are labelled in the interface language.
+                "ui_language": get_language(),
+            },
             "cards": {
                 "language": cfg["language"],
+                "ui_language": get_language(),
                 "cards": cfg["cards"],
                 "coverage": cfg["translation"]["cumulative_coverage_limit"],
                 "specificity_threshold": cfg["translation"]["specificity_threshold"],

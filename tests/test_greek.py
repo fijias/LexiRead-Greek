@@ -158,3 +158,15 @@ def test_particles_tagged_aux_are_not_flagged(lexicon):
     info = GrammarInfo("p", learning_form="να")
     enrich_greek({"lemma": "να", "pos": "AUX", "morph_variants": []}, info, lexicon)
     assert not info.review and not info.grammar_forms
+
+
+def test_english_interface_puts_english_translation_first(monkeypatch):
+    from src import i18n
+    from src.cards.formatter import card_content
+    from src.cards.models import CardEntry
+
+    card = CardEntry(lemma="δρόμος", pos="NOUN", rank=1, grammatical_forms="", learning_form="ο δρόμος",
+                     ipa="ˈðromos", translation_ru="дорога", translation_en="road", observed_forms={})
+    assert card_content(card, language="el")[2] == ["дорога", "road"]
+    monkeypatch.setattr(i18n, "_current", "en")
+    assert card_content(card, language="el")[2] == ["road", "дорога"]

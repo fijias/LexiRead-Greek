@@ -15,6 +15,8 @@ import urllib.request
 from importlib import metadata
 from pathlib import Path
 
+from src.i18n import t
+
 ROOT = Path(__file__).resolve().parents[1]
 ESPEAK_URL = "https://github.com/espeak-ng/espeak-ng/releases/download/1.52.0/espeak-ng.msi"
 IMPORTS = [
@@ -80,9 +82,9 @@ def command(args, timeout=1800, capture=False):
                     progress = re.fullmatch(r"Progress (\d+) of (\d+)\s*", line)
                     if progress:
                         current, total = map(int, progress.groups())
-                        message = f"Загружено {current / 1_000_000:.1f} МБ"
+                        message = t("setup.downloaded", done=current / 1_000_000)
                         if total:
-                            message += f" из {total / 1_000_000:.1f} МБ ({current / total:.0%})"
+                            message += t("setup.downloaded_of", total=total / 1_000_000, share=current / total)
                         print(message, flush=True)
                     else:
                         print(line, end="", flush=True)
@@ -101,7 +103,7 @@ def command(args, timeout=1800, capture=False):
                     creationflags=subprocess.CREATE_NO_WINDOW, timeout=10,
                 )
             except (OSError, subprocess.TimeoutExpired):
-                logger.warning("Не удалось завершить дерево процесса %s", process.pid)
+                logger.warning(t("setup.kill_failed", pid=process.pid))
         if process.poll() is None:
             process.kill()
         process.wait()
@@ -171,14 +173,10 @@ def install_dependencies():
                 timeout=180,
             )
         except subprocess.TimeoutExpired:
-            logger.warning("Превышено время обновления pip; используется установленная версия.")
+            logger.warning(t("setup.pip_timeout"))
             result = None
         if result is None or result.returncode != 0:
-            print(
-                "Предупреждение: pip не удалось обновить. "
-                f"Установка продолжится с pip {metadata.version('pip')}.",
-                flush=True,
-            )
+            print(t("setup.pip_warning", version=metadata.version("pip")), flush=True)
         else:
             truststore_args = ()
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
@@ -194,7 +192,7 @@ def install_dependencies():
         editable_here = False
     healthy = requirements_satisfied(project) and imports_work()
     if healthy and editable_here and python("-m", "pip", "check", capture=True).returncode == 0:
-        print("Библиотеки уже установлены.", flush=True)
+        print(t("setup.libs_ready"), flush=True)
         return
     require(
         python(
@@ -207,10 +205,10 @@ def install_dependencies():
             "--index-url",
             "https://pypi.org/simple",
         ),
-        "Не удалось установить зависимости. Проверьте подключение к PyPI и свободное место.",
+        t("setup.libs_failed"),
     )
     if not imports_work():
-        print("Восстановление повреждённых библиотек...", flush=True)
+        print(t("setup.repairing"), flush=True)
         require(
             python(
                 "-m",
@@ -223,11 +221,11 @@ def install_dependencies():
                 "--index-url",
                 "https://pypi.org/simple",
             ),
-            "Не удалось восстановить библиотеки. Подробности: logs/setup.log.",
+            t("setup.repair_failed"),
         )
         if not imports_work():
-            raise RuntimeError("Не проходят проверки импортов. Подробности: logs/setup.log.")
-    require(python("-m", "pip", "check", capture=True), "Обнаружен конфликт зависимостей: logs/setup.log.")
+            raise RuntimeError(t("setup.imports_failed"))
+    require(python("-m", "pip", "check", capture=True), t("setup.conflict"))
 
 
 def configured_models(language="en"):
@@ -252,13 +250,9 @@ def model_works(model):
 def install_models(language="en"):
     for model in configured_models(language):
         if model_works(model):
-            print(f"{model}: готово.", flush=True)
+            print(t("setup.model_ready", model=model), flush=True)
             continue
-        print(
-            f"Установка/восстановление {model}...\n"
-            "Модель имеет большой размер. Ход загрузки будет показан ниже.",
-            flush=True,
-        )
+        print(t("setup.model_installing", model=model), flush=True)
         try:
             metadata.version(model)
             flags = ["--force-reinstall"]
@@ -266,10 +260,10 @@ def install_models(language="en"):
             flags = []
         require(
             python("-m", "spacy", "download", model, *flags, *pip_truststore_args(), timeout=3600),
-            f"Не удалось установить {model}. Проверьте доступ к github.com/explosion/spacy-models.",
+            t("setup.model_failed", model=model),
         )
         if not model_works(model):
-            raise RuntimeError(f"Модель {model} не загружается. Подробности: logs/setup.log.")
+            raise RuntimeError(t("setup.model_broken", model=model))
 
 
 def download_espeak(target):
@@ -278,7 +272,7 @@ def download_espeak(target):
     try:
         with urllib.request.urlopen(request, timeout=60) as response, part.open("wb") as stream:
             if not response.url.startswith("https://"):
-                raise RuntimeError("Загрузка eSpeak перенаправлена на небезопасный URL.")
+                raise RuntimeError(t("setup.unsafe_redirect"))
             while chunk := response.read(1024 * 1024):
                 stream.write(chunk)
         part.replace(target)
@@ -300,16 +294,14 @@ def espeak_works():
 
 def install_espeak():
     if espeak_works():
-        print("eSpeak NG: реальная транскрипция English и Español проверена.", flush=True)
+        print(t("setup.espeak_ready"), flush=True)
         return
     if os.name != "nt":
-        raise RuntimeError(
-            "Установите системный eSpeak NG; автоматическая установка предназначена для Windows."
-        )
+        raise RuntimeError(t("setup.espeak_system"))
     downloads = ROOT / ".local" / "downloads"
     downloads.mkdir(parents=True, exist_ok=True)
     archive = downloads / "espeak-ng-1.52.0.msi"
-    print("Загрузка официального eSpeak NG 1.52.0...", flush=True)
+    print(t("setup.espeak_download"), flush=True)
     download_espeak(archive)
     target = ROOT / ".local" / "espeak"
     target.mkdir(parents=True, exist_ok=True)
@@ -328,11 +320,7 @@ def install_espeak():
         capture=True,
     )
     if result.returncode not in (0, 3010) or not espeak_works():
-        raise RuntimeError(
-            "Не удалось распаковать/запустить eSpeak NG автоматически. Откройте "
-            ".local/downloads/espeak-ng-1.52.0.msi для стандартной установки "
-            "(Windows может запросить права администратора), затем повторите INSTALL.bat."
-        )
+        raise RuntimeError(t("setup.espeak_failed"))
     (target / "SOURCE.json").write_text(
         json.dumps(
             {
@@ -350,12 +338,12 @@ def install_kaikki(language="en"):
     from src.translation.download import main
 
     if main(["--language", language]):
-        raise RuntimeError("Не удалось установить Kaikki. Проверьте интернет и повторите INSTALL.bat.")
+        raise RuntimeError(t("setup.kaikki_failed"))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="Проверки без скачивания и установки")
+    parser.add_argument("--check", action="store_true", help=t("setup.check_help"))
     parser.add_argument("--language", choices=("en", "es", "el"), default="el")
     args = parser.parse_args(argv)
     (ROOT / "logs").mkdir(parents=True, exist_ok=True)
@@ -368,31 +356,31 @@ def main(argv=None):
     try:
         if args.check:
             if not imports_work():
-                raise RuntimeError("Не готовы Python-зависимости.")
+                raise RuntimeError(t("setup.deps_not_ready"))
             for model in configured_models(args.language):
                 if not model_works(model):
-                    raise RuntimeError(f"Не готова модель {model}.")
+                    raise RuntimeError(t("setup.model_not_ready", model=model))
             if not espeak_works():
-                raise RuntimeError("Не готов eSpeak NG.")
+                raise RuntimeError(t("setup.espeak_not_ready"))
             from src.languages.installation import language_is_installed
 
             if not language_is_installed(ROOT, args.language):
-                raise RuntimeError(f"Не установлены ресурсы языка: {args.language}.")
+                raise RuntimeError(t("setup.language_not_ready", language=args.language))
         else:
             if Path(sys.prefix).resolve() != (ROOT / ".venv").resolve():
-                raise RuntimeError("Используйте INSTALL.bat: установка должна выполняться внутри .venv.")
+                raise RuntimeError(t("setup.use_installer"))
             for number, label, action in (
-                (3, "Проверка библиотек", install_dependencies),
-                (4, "Проверка NLP-модели", lambda: install_models(args.language)),
-                (5, "Проверка eSpeak NG", install_espeak),
-                (6, "Установка словарей Kaikki", lambda: install_kaikki(args.language)),
+                (3, t("setup.step_libs"), install_dependencies),
+                (4, t("setup.step_model"), lambda: install_models(args.language)),
+                (5, t("setup.step_espeak"), install_espeak),
+                (6, t("setup.step_kaikki"), lambda: install_kaikki(args.language)),
             ):
                 print(f"[{number}/7] {label}...", flush=True)
                 action()
         from scripts.assets import check_assets
 
         check_assets(ROOT)
-        print("[7/7] Проверка интерфейса...", flush=True)
+        print(t("setup.step_gui"), flush=True)
         require(
             python(
                 "-c",
@@ -400,12 +388,12 @@ def main(argv=None):
                 timeout=30,
                 capture=True,
             ),
-            "Не удалось открыть GUI. Проверьте Tcl/Tk.",
+            t("setup.gui_failed"),
         )
         return 0
     except Exception as exc:
         logger.exception("Setup failed")
-        print(f"Ошибка: {exc}", flush=True)
+        print(t("setup.error", error=exc), flush=True)
         return 1
 
 

@@ -1,0 +1,128 @@
+"""English equivalents of the Russian labels written into result files.
+
+Result files are built with Russian labels (sheet names, column headers, part-of-speech
+names, review messages); ``out`` swaps them for English when the interface is English.
+"""
+
+from src.i18n import get_language
+
+OUTPUT_EN = {
+    # Sheets
+    "Леммы": "Lemmas",
+    "Словоформы": "Word forms",
+    "Проверка": "Review",
+    "Атрибуция": "Attribution",
+    "Список для изучения": "Study list",
+    # Lemma and form columns
+    "Ранг": "Rank",
+    "Лемма": "Lemma",
+    "Учебная форма": "Learning form",
+    "Суммарное число вхождений": "Occurrences",
+    "Всего вхождений леммы": "Lemma occurrences, all POS",
+    "Кумулятивное покрытие": "Cumulative coverage",
+    "Относительная частота в книге": "Relative frequency in text",
+    "Частота Wordfreq": "Wordfreq frequency",
+    "Специфичность": "Specificity",
+    "Количество контекстных блоков": "Text chunks",
+    "Транскрипция": "Transcription",
+    "Часть речи": "Part of speech",
+    "Род": "Gender",
+    "Грамматические формы": "Grammar forms",
+    "Инфинитив": "Infinitive",
+    "Группа спряжения": "Conjugation group",
+    "Регулярность": "Regularity",
+    "Словоформы в книге": "Forms in text",
+    "Перевод на русский": "Russian translation",
+    "Перевод на английский": "English translation",
+    "Пример из книги": "Example from text",
+    "Словоформа": "Word form",
+    "Число вхождений": "Occurrences",
+    "Грамматические признаки": "Grammatical features",
+    # Study list
+    "Слово": "Word",
+    "Перевод": "Translation",
+    # Review columns and values
+    "Алфавит": "Alphabet",
+    "Вхождений": "Occurrences",
+    "В списке для изучения": "In study list",
+    "Статус": "Status",
+    "Что проверить": "What to check",
+    "Что сделать": "What to do",
+    "Пример из текста": "Example from text",
+    "Греческий": "Greek",
+    "Латиница": "Latin",
+    "Кириллица": "Cyrillic",
+    "Смешанный": "Mixed",
+    "Да": "Yes",
+    "Нет": "No",
+    "Ошибка": "Error",
+    "Нужно проверить": "Check",
+    "Замечаний нет": "No issues",
+    "Нет замечаний, требующих ручной проверки.": "Nothing needs manual review.",
+    "Весь словарь": "Whole dictionary",
+    "Неполный или несогласованный набор грамматических данных": "Grammar data are incomplete or inconsistent",
+    "Неполный или несогласованный набор переводов": "Translations are incomplete or inconsistent",
+    "Неполный или несогласованный набор данных": "Data are incomplete or inconsistent",
+    "Повторите обработку; если проблема останется, сообщите разработчику.": "Run the analysis again; if the problem remains, report it to the developer.",
+    "Транскрипция выглядит необычно": "The transcription looks unusual",
+    "Не удалось получить транскрипцию": "No transcription",
+    "Сверьте произношение со словарём.": "Check the pronunciation in a dictionary.",
+    "Отсутствует перевод на русский": "Russian translation missing",
+    "Отсутствует перевод на английский": "English translation missing",
+    "Перевод на русский слишком длинный или содержит лишнее оформление": "Russian translation is too long or contains formatting",
+    "Перевод на английский слишком длинный или содержит лишнее оформление": "English translation is too long or contains formatting",
+    "Возможно, перевод выполнен не на русский язык": "The Russian translation may be in another language",
+    "Возможно, перевод выполнен не на английский язык": "The English translation may be in another language",
+    "Проверьте перевод по примеру из книги и уточните его перед изучением.": "Check the translation against the example and correct it before studying.",
+    "Грамматические формы требуют проверки": "Grammar forms need checking",
+    "Сверьте формы слова со словарём и примером из книги.": "Check the word forms against a dictionary and the example.",
+    "Не удалось определить часть речи": "Part of speech not recognized",
+    "Не удалось определить начальную форму слова": "Base form not recognized",
+    "Возможно, слово распознано неверно": "The word may be recognized incorrectly",
+    "Сверьте слово с исходным текстом: возможна опечатка или ошибка распознавания.": "Check the word in the source text: it may be a typo or a recognition error.",
+    "Результат обработки требует проверки": "The result needs checking",
+    "Сверьте запись со словарём; при необходимости сообщите разработчику.": "Check the entry in a dictionary; report it to the developer if needed.",
+    "Не все формы модального глагола определены": "Not all forms of the modal verb are known",
+    "Не удалось определить начальную форму глагола": "The base form of the verb was not recognized",
+    "Не определено, изменяется ли глагол по правилу": "Unknown whether the verb is regular",
+    "Не все формы прилагательного определены": "Not all adjective forms are known",
+    "Формы прилагательного не совпадают с формами в книге": "Adjective forms differ from the forms in the text",
+    "Род слова в словаре и в тексте различается": "Gender in the dictionary differs from the text",
+    "Не удалось однозначно определить род слова": "Gender is unknown or ambiguous",
+    "Нужно уточнить артикль перед ударным a/ha": "Check the article before stressed a/ha",
+    "Слово употребляется во множественном числе": "The word is used in the plural",
+    "Множественное число не совпадает с формой в книге": "The plural differs from the form in the text",
+    "Не удалось надёжно определить множественное число": "The plural could not be determined reliably",
+    "Начальная форма не найдена в словаре: возможна ошибка анализа, имя собственное или редкое слово": "Base form not in the dictionary: analysis error, proper name or rare word",
+    "Часть речи, определённая в тексте, не совпадает со словарём": "Part of speech in the text differs from the dictionary",
+    # Parts of speech
+    "существительное": "noun",
+    "глагол": "verb",
+    "прилагательное": "adjective",
+    "наречие": "adverb",
+    "местоимение": "pronoun",
+    "определитель / артикль": "determiner / article",
+    "предлог": "preposition",
+    "вспомогательный глагол": "auxiliary verb",
+    "имя собственное": "proper noun",
+    "сочинительный союз": "coordinating conjunction",
+    "подчинительный союз": "subordinating conjunction",
+    "частица": "particle",
+    "числительное": "numeral",
+    "междометие": "interjection",
+    "символ": "symbol",
+    "неизвестно": "unknown",
+    # Gender values
+    "мужской": "masculine",
+    "женский": "feminine",
+    "средний": "neuter",
+    # Cards
+    "Нет слов для изучения при выбранных настройках.": "No words to study with the selected settings.",
+}
+
+
+def out(text):
+    """Label for a result file in the interface language; data (words, examples) pass through."""
+    if get_language() == "ru" or not isinstance(text, str):
+        return text
+    return OUTPUT_EN.get(text, text)

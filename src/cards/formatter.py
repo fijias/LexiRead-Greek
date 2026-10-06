@@ -3,6 +3,7 @@ import re
 import unicodedata
 from collections.abc import Mapping
 
+from src.i18n import get_language
 from src.languages import get_profile
 from src.text import fold
 
@@ -114,4 +115,7 @@ def card_content(entry, max_forms=10, language="es"):
     translations = [entry.translation_ru]
     if get_profile(language).cards_show_english_translation:
         translations.append(entry.translation_en)
+        # The interface language comes first: English readers see the English meaning on top.
+        if get_language() == "en":
+            translations.reverse()
     return front, f"/{entry.ipa}/", translations, format_observed_forms(forms)
