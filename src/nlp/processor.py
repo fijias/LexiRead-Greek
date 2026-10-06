@@ -8,6 +8,7 @@ from tqdm import tqdm
 from src.models import Occurrence
 from src.preprocessing.chunker import chunks
 from src.storage import atomic_path
+from src.text import fold
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ SCHEMA = pa.schema(
 )
 
 
-def run(source, target, config):
+def run(source, target, config, lexicon_path=None):
     import spacy
 
     try:
@@ -35,7 +36,14 @@ def run(source, target, config):
         raise RuntimeError(f"Установите модель: python -m spacy download {config.model}") from exc
     text = source.read_text(encoding="utf-8")
     nlp.max_length = max(nlp.max_length, len(text) + 1)
-    count = words = chunk_count = sentence_id = 0
+    lexicon = None
+    if lexicon_path:
+        from src.languages.greek_lexicon import GreekLexicon, is_healthy
+
+        if not is_healthy(lexicon_path):
+            raise RuntimeError("Греческий словарь Kaikki не установлен: запустите INSTALL_GREEK.bat")
+        lexicon = GreekLexicon(lexicon_path)
+    count = words = chunk_count = sentence_id = corrected = 0
     stream = ((chunk.text, chunk) for chunk in chunks(text, config.chunk_size))
     with atomic_path(target) as tmp, pq.ParquetWriter(tmp, SCHEMA, compression="zstd") as writer:
         for doc, chunk in tqdm(
@@ -52,12 +60,17 @@ def run(source, target, config):
                         count += 1
                         continue
                     words += 1
+                    lemma = fold(token.lemma_)
+                    if lexicon and token.is_alpha:
+                        fixed = lexicon.lemma(token.text, token.pos_, token.lemma_)
+                        corrected += fixed != lemma
+                        lemma = fixed
                     rows.append(
                         asdict(
                             Occurrence(
                                 token.text,
-                                token.text.casefold(),
-                                token.lemma_.casefold(),
+                                fold(token.text),
+                                lemma,
                                 token.pos_,
                                 str(token.morph),
                                 token.is_alpha,
@@ -76,3 +89,6 @@ def run(source, target, config):
             if rows:
                 writer.write_table(pa.Table.from_pylist(rows, schema=SCHEMA))
     logger.info("Chunks: %d; токенов: %d; слов: %d", chunk_count, count, words)
+    if lexicon:
+        lexicon.close()
+        logger.info("Леммы, исправленные по Kaikki: %d", corrected)

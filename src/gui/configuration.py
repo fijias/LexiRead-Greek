@@ -8,7 +8,12 @@ import yaml
 
 from src.config import Config, load_config
 
-LANGUAGES = {"English": "en", "Español": "es"}
+LANGUAGES = {"English": "en", "Español": "es", "Ελληνικά": "el"}
+# Languages installed on demand: (genitive, accusative, nominative, installer).
+OPTIONAL_LANGUAGES = {
+    "es": ("испанского", "испанский", "Испанский", "INSTALL_SPANISH.bat"),
+    "el": ("греческого", "греческий", "Греческий", "INSTALL_GREEK.bat"),
+}
 
 
 def restore_empty_default(entry, variable, default):
@@ -47,7 +52,7 @@ def build_config(root, source, language, options):
     if source.stat().st_size == 0:
         raise ValueError("Выбранный TXT-файл пуст.")
     if language not in LANGUAGES.values():
-        raise ValueError("Выберите English или Español.")
+        raise ValueError("Выберите English, Español или Ελληνικά.")
     demo = root / "config" / f"demo_{language}.yaml"
     cfg = load_config(demo)
     cfg.cards.enabled = bool(options["cards"])

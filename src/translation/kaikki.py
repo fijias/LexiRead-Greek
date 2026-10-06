@@ -1,6 +1,7 @@
 """Local, part-of-speech aware lookup of explicit Kaikki translations."""
 
 import logging
+import re
 import sqlite3
 import unicodedata
 from contextlib import closing
@@ -26,7 +27,10 @@ POS = {
     "PART": ("particle",),
     "INTJ": ("intj",),
 }
-PAIRS = {("en", "ru"), ("es", "ru"), ("es", "en")}
+PAIRS = {("en", "ru"), ("es", "ru"), ("es", "en"), ("el", "ru")}
+MAX_GLOSS_LENGTH = 40
+# Usage notes and cross-references in English glosses, and Greek words quoted in them.
+GLOSS_NOTE = re.compile(r"^(?:alternative|see|in the sense|used|literally)\b|senses$|[\u0370-\u03ff]", re.IGNORECASE)
 
 
 def clean_word(word):
@@ -55,6 +59,40 @@ def translation_rows(entry):
                 yield (source, word.casefold(), pos, target, value, 0)
             if (target, source) in PAIRS:
                 yield (target, value.casefold(), pos, source, word, 1)
+
+
+GLOSS_LANGUAGE = {"el": "en", "ru": "ru"}
+RU_LABELS = re.compile(r"^(?:[а-яё]{1,8}\.\s*)+")
+
+
+def gloss_rows(entry, edition):
+    """Greek -> gloss language from a Wiktionary edition's own Greek headwords.
+
+    Wiktionaries have no translation tables for foreign headwords; their glosses are
+    themselves short equivalents: "roadway, road, street, way" (English edition, stored
+    as the "el" source), "дом; жилище" (Russian edition). Explicit translation-table
+    pairs keep precedence through a lower priority value.
+    """
+    from src.languages.greek_lexicon import defined_senses
+
+    word, pos = entry.get("word", ""), entry.get("pos")
+    target = GLOSS_LANGUAGE.get(edition)
+    if entry.get("lang_code") != "el" or not target or not word or not pos:
+        return
+    word = clean_word(word).casefold()
+    offset = 0 if target == "en" else 2
+    for priority, sense in enumerate(defined_senses(entry)[:6]):
+        if {"obsolete", "archaic"} & set(sense.get("tags", [])):
+            continue
+        gloss = re.sub(r"\([^)]*\)|\[[^]]*\]", "", sense["glosses"][0])
+        for part in re.split(r"[;,]", gloss):
+            part = part.strip(" .")
+            if target == "ru":
+                # Russian Wiktionary usage labels: "зоол. жираф", "мн. ч. скачки".
+                part = RU_LABELS.sub("", part)
+            part = " ".join(part.split())
+            if part and len(part) <= MAX_GLOSS_LENGTH and not GLOSS_NOTE.search(part):
+                yield ("el", word, pos, target, part, offset + priority)
 
 
 def translate_entries(entries, dictionary_path, language):

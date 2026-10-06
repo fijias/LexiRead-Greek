@@ -3,6 +3,7 @@ from collections import Counter
 
 from src.cards.formatter import normalize_card_form
 from src.cards.models import CardEntry
+from src.languages import get_profile
 from src.lemma_groups import group_lemmas
 from src.translation.selection import TranslationSelection, select_lemmas_by_cumulative_coverage
 
@@ -24,7 +25,8 @@ def select_cards(
     translations = {row["id"]: row for row in data["translations"]}
     cards = []
     missing = {"IPA": 0, "Russian translations": 0, "observed forms": 0}
-    if language == "es":
+    show_english = get_profile(language).cards_show_english_translation
+    if show_english:
         missing["English translations"] = 0
 
     def joined(values, separator=", "):
@@ -73,7 +75,7 @@ def select_cards(
             missing["IPA"] += 1
         if value.translation_ru == "—":
             missing["Russian translations"] += 1
-        if language == "es" and value.translation_en == "—":
+        if show_english and value.translation_en == "—":
             missing["English translations"] += 1
         if not value.observed_forms:
             missing["observed forms"] += 1

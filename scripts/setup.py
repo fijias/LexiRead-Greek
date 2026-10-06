@@ -355,7 +355,7 @@ def install_kaikki(language="en"):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="Проверки без скачивания и установки")
-    parser.add_argument("--language", choices=("en", "es"), default="en")
+    parser.add_argument("--language", choices=("en", "es", "el"), default="en")
     args = parser.parse_args(argv)
     (ROOT / "logs").mkdir(parents=True, exist_ok=True)
     logging.basicConfig(

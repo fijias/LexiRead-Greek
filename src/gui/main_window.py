@@ -19,7 +19,7 @@ import customtkinter as ctk
 from pydantic import ValidationError
 
 from src.config import load_config
-from src.gui.configuration import LANGUAGES, build_config, save_config, valid_numeric_edit, restore_empty_default
+from src.gui.configuration import LANGUAGES, OPTIONAL_LANGUAGES, build_config, save_config, valid_numeric_edit, restore_empty_default
 from src.gui.controller import Controller
 from src.gui.secrets import load_key, save_key
 from src.languages.installation import language_is_installed
@@ -642,11 +642,11 @@ class MainWindow(ctk.CTk):
 
         1. Выберите txt-файл с текстом на иностранном языке. Рекомендуется использовать кодировку UTF-8. Программа пытается автоматически распознать и прочитать другие распространённые кодировки, однако в некоторых случаях возможны ошибки. Если текст отображается неправильно, откройте файл в Блокноте, выберите «Сохранить как» и укажите кодировку UTF-8.
 
-        2. Выберите язык, на котором написан текст. Сейчас приложение поддерживает английский и испанский языки.
+        2. Выберите язык, на котором написан текст. Сейчас приложение поддерживает английский, испанский и греческий языки.
 
         3. По умолчанию перевод слов выполняется через локальный словарь Kaikki. При необходимости можно включить перевод через языковую модель (LLM). Для этого потребуется API key OpenAI.
 
-        4. Если у вас имеется список слов, которые вы уже знаете, перенесите их в словарь (my_dictionary_en.xlsx – для английского, my_dictionary_es.xlsx – для испанского), который находится в корневой папке приложения. Для примера в словари уже внесено несколько слов. 
+        4. Если у вас имеется список слов, которые вы уже знаете, перенесите их в словарь (my_dictionary_en.xlsx – для английского, my_dictionary_es.xlsx – для испанского, my_dictionary_el.xlsx – для греческого), который находится в корневой папке приложения. Для примера в словари уже внесено несколько слов. 
         Если слово из вашего словаря будет найдено в книге, оно не будет переводиться и не будет включаться в итоговые списки и карточки слов для изучения. При этом такие слова останутся в сводной таблице.
 
         5. Расширенные настройки. Установите ограничения для выбора слов параметрами «Покрытие текста», «Порог специфичности» и «Минимум вхождений в тексте».
@@ -741,21 +741,22 @@ class MainWindow(ctk.CTk):
 
     def language_changed(self, selected):
         language = LANGUAGES[selected]
-        if language == "es" and not language_is_installed(self.root, language):
-            self.show_language_install_window()
+        if language in OPTIONAL_LANGUAGES and not language_is_installed(self.root, language):
+            self.show_language_install_window(language)
             return
         self._previous_language = selected
         self.defaults()
 
-    def show_language_install_window(self):
+    def show_language_install_window(self, language):
         if self._language_install_window and self._language_install_window.winfo_exists():
             self._language_install_window.deiconify()
             self._language_install_window.lift()
             return
 
+        genitive, accusative, _, _ = OPTIONAL_LANGUAGES[language]
         win = ctk.CTkToplevel(self)
         self._language_install_window = win
-        win.title("Установка испанского языка")
+        win.title(f"Установка {genitive} языка")
         win.geometry("560x230")
         win.resizable(False, False)
         win.transient(self)
@@ -765,60 +766,61 @@ class MainWindow(ctk.CTk):
             self.language.set(self._previous_language)
             win.destroy()
 
-        body = self._dialog_body(win, "Установка испанского языка", cancel)
+        body = self._dialog_body(win, f"Установка {genitive} языка", cancel)
         ctk.CTkLabel(
             body,
-            text="Для создания списка слов для испанского языка необходимо установить дополнительные библиотеки",
+            text=f"Для создания списка слов для {genitive} языка необходимо установить дополнительные библиотеки",
             font=_font(size=18), text_color=THEME["white"], justify="left", wraplength=510,
         ).pack(fill="x", padx=24, pady=(30, 20))
 
         def install():
             win.grab_release()
             win.destroy()
-            self._start_spanish_installation()
+            self._start_language_installation(language)
 
         buttons = ctk.CTkFrame(body, fg_color="transparent")
         buttons.pack(fill="x", padx=24, pady=(0, 20))
         self._button(buttons, "Отмена", cancel).pack(side="left")
-        self._button(buttons, "Установить испанский", install).pack(side="right")
+        self._button(buttons, f"Установить {accusative}", install).pack(side="right")
         win.protocol("WM_DELETE_WINDOW", cancel)
         self._center_dialog(win)
 
-    def _start_spanish_installation(self):
-        installer = self.root / "INSTALL_SPANISH.bat"
+    def _start_language_installation(self, language):
+        genitive, accusative, _, installer = OPTIONAL_LANGUAGES[language]
         try:
             self._language_install_process = subprocess.Popen(
-                ["cmd.exe", "/c", str(installer)],
+                ["cmd.exe", "/c", str(self.root / installer)],
                 cwd=self.root,
                 creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == "nt" else 0,
             )
         except OSError:
             self.language.set(self._previous_language)
-            messagebox.showerror("Установка испанского", "Не удалось запустить установку.", parent=self)
+            messagebox.showerror(f"Установка: {accusative}", "Не удалось запустить установку.", parent=self)
             return
         self.language_menu.configure(state="disabled")
-        self.status.configure(text="Статус: Установка компонентов испанского языка…")
-        self.after(500, self._poll_spanish_installation)
+        self.status.configure(text=f"Статус: Установка компонентов {genitive} языка…")
+        self.after(500, self._poll_language_installation, language)
 
-    def _poll_spanish_installation(self):
+    def _poll_language_installation(self, language):
         if self._closing:
             return
+        _, accusative, nominative, _ = OPTIONAL_LANGUAGES[language]
         result = self._language_install_process.poll()
         if result is None:
-            self.after(500, self._poll_spanish_installation)
+            self.after(500, self._poll_language_installation, language)
             return
         self.language_menu.configure(state="normal")
         self._language_install_process = None
-        if result == 0 and language_is_installed(self.root, "es"):
-            self._previous_language = "Español"
+        if result == 0 and language_is_installed(self.root, language):
+            self._previous_language = next(name for name, code in LANGUAGES.items() if code == language)
             self.defaults()
-            self.status.configure(text="Статус: Испанский язык установлен")
+            self.status.configure(text=f"Статус: {nominative} язык установлен")
             return
         self.language.set(self._previous_language)
         self.defaults()
-        self.status.configure(text="Статус: Испанский язык не установлен")
+        self.status.configure(text=f"Статус: {nominative} язык не установлен")
         messagebox.showerror(
-            "Установка испанского",
+            f"Установка: {accusative}",
             "Не удалось установить дополнительные компоненты. Подробности сохранены в logs/setup.log.",
             parent=self,
         )

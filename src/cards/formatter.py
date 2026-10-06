@@ -3,7 +3,14 @@ import re
 import unicodedata
 from collections.abc import Mapping
 
-_ARTICLES = frozenset({"el", "la", "los", "las", "un", "una", "unos", "unas"})
+from src.languages import get_profile
+from src.text import fold
+
+_ARTICLES = frozenset(
+    {"el", "la", "los", "las", "un", "una", "unos", "unas"}
+    # Greek nominative and genitive articles used on card fronts.
+    | {"ο", "η", "το", "οι", "τα", "του", "της", "των"}
+)
 _FRONT_SEPARATORS = re.compile(r"\s*(?:/|;|\||,)\s*")
 
 
@@ -24,7 +31,7 @@ def get_card_front_text(entry) -> str:
 
 def normalize_card_form(text: str) -> str:
     """Normalize text only for matching a displayed form to an observed form."""
-    return unicodedata.normalize("NFC", str(text)).strip().casefold()
+    return fold(unicodedata.normalize("NFC", str(text)).strip())
 
 
 def extract_forms_from_front(front_text: str, strip_articles=True) -> set[str]:
@@ -105,6 +112,6 @@ def card_content(entry, max_forms=10, language="es"):
         else filter_observed_forms_for_back(entry.observed_forms, front, max_forms, True)
     )
     translations = [entry.translation_ru]
-    if language == "es":
+    if get_profile(language).cards_show_english_translation:
         translations.append(entry.translation_en)
     return front, f"/{entry.ipa}/", translations, format_observed_forms(forms)

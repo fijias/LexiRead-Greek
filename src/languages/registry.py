@@ -26,6 +26,16 @@ _PROFILES = {
         True,
         True,
     ),
+    "el": LanguageProfile(
+        "el",
+        "el",
+        "el_core_news_lg",
+        "el",
+        ("ru", "en"),
+        "greek_frequency_dictionary.xlsx",
+        True,
+        True,
+    ),
     "en": LanguageProfile(
         "en",
         "en",

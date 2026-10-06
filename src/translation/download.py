@@ -17,12 +17,14 @@ from tqdm import tqdm
 
 from src.config import load_config
 
-from .kaikki import SCHEMA_VERSION, translation_rows
+from .kaikki import SCHEMA_VERSION, gloss_rows, translation_rows
 from .health import dictionary_is_healthy
 
 SOURCES = {
     "ru": "https://kaikki.org/dictionary/downloads/ru/ru-extract.jsonl.gz",
     "es": "https://kaikki.org/dictionary/downloads/es/es-extract.jsonl.gz",
+    # Greek headwords of English Wiktionary: lemmas, inflection tables and English glosses.
+    "el": "https://kaikki.org/dictionary/Greek/kaikki.org-dictionary-Greek.jsonl",
 }
 logger = logging.getLogger(__name__)
 
@@ -72,13 +74,14 @@ def build_index(sources, target):
             )
             for source in sources:
                 logger.info("Индексирование %s", source.name)
+                edition = source.name.split("-", 1)[0]
                 opener = gzip.open if source.suffix == ".gz" else open
                 with opener(source, "rt", encoding="utf-8") as stream:
                     for line in tqdm(stream, desc=source.name, unit=" entries"):
                         if not line.strip():
                             continue
                         row = json.loads(line)
-                        for value in translation_rows(row):
+                        for value in (*translation_rows(row), *gloss_rows(row, edition)):
                             db.execute(
                                 "INSERT INTO translations VALUES (?, ?, ?, ?, ?, ?) "
                                 "ON CONFLICT(language,word,pos,target,value) DO UPDATE "
@@ -106,8 +109,7 @@ def build_index(sources, target):
 
 def editions_for_languages(languages):
     editions = {"ru"}
-    if "es" in languages:
-        editions.add("es")
+    editions.update(language for language in ("es", "el") if language in languages)
     return editions
 
 
@@ -132,7 +134,7 @@ def install(cache_dir, force=False, languages=("en",)):
         provenance = []
         for edition in sorted(editions):
             url = SOURCES[edition]
-            source = directory / f"{edition}-extract.jsonl.gz"
+            source = directory / (f"{edition}-extract.jsonl" + (".gz" if url.endswith(".gz") else ""))
             if force or not source.is_file():
                 download_file(url, source)
             sources.append(source)
@@ -140,6 +142,12 @@ def install(cache_dir, force=False, languages=("en",)):
                 sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
             provenance.append({"url": url, "sha256": sha256})
         count = build_index(sources, target)
+        if "el" in editions:
+            from src.languages import greek_lexicon
+
+            source = directory / "el-extract.jsonl"
+            forms = greek_lexicon.build(source, directory / greek_lexicon.FILENAME)
+            logger.info("Kaikki: греческий лексикон, %d словоформ", forms)
         (directory / "SOURCES.json").write_text(
             json.dumps(
                 {
@@ -166,7 +174,7 @@ def main(argv=None):
         "--config", type=Path, nargs="+", default=[Path("config/demo_en.yaml"), Path("config/demo_es.yaml")]
     )
     parser.add_argument("--force", action="store_true", help="Скачать свежие данные и пересоздать индекс")
-    parser.add_argument("--language", choices=("en", "es"), default="en")
+    parser.add_argument("--language", choices=("en", "es", "el"), default="en")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:

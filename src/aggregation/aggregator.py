@@ -5,6 +5,7 @@ from dataclasses import asdict
 from src.models import FormEntry, LemmaEntry
 from src.nlp.token_filter import include
 from src.storage import digest, iter_rows, write_rows
+from src.text import fold
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def aggregate(occurrences, config, filters):
     for row in occurrences:
         if not include(row, filters):
             continue
-        lemma, pos, form = row["lemma"].casefold(), row["pos"], row["normalized_form"].casefold()
+        lemma, pos, form = fold(row["lemma"]), row["pos"], fold(row["normalized_form"])
         lk, fk = (lemma, pos), (form, lemma, pos)
         if lk not in lemmas:
             lemmas[lk] = {"forms": Counter(), "contexts": [], "morph": set(), "chunks": set()}

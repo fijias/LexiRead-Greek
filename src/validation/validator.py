@@ -3,6 +3,7 @@ import re
 from collections import Counter, defaultdict
 
 from src.grammar.pos_mapping import POS_RU
+from src.languages import get_profile
 from src.models import ValidationIssue
 from src.storage import read_rows, write_rows
 
@@ -65,7 +66,7 @@ class Validator:
         for row in translations:
             if not row.get("translation_eligible", True):
                 continue
-            for lang in ("ru", "en") if config.language == "es" else ("ru",):
+            for lang in get_profile(config.language).translation_targets:
                 value = row.get(lang, "")
                 if not value.strip():
                     add(

@@ -1,0 +1,27 @@
+language: el
+paths:
+  work: ../data/work/demo_el
+  cache: ../data/cache
+  output: ../data/output/demo_el
+nlp:
+  model: el_core_news_lg
+  batch_size: 16
+  chunk_size: 5000
+pronunciation:
+  enabled: true
+  language: el
+translation:
+  cumulative_coverage_limit: 90
+  specificity_threshold: 20.0
+  min_book_occurrences: 4
+machine_translation:
+  enabled: false
+  provider: openai
+  model: gpt-6-luna
+cards:
+  enabled: true
+  template: ../table.docx
+  output_filename: greek_cards.docx
+known_dictionary:
+  enabled: true
+  path: ../my_dictionary_el.xlsx

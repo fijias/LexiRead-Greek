@@ -24,9 +24,15 @@ ARTIFACTS = {
     "cards": [],
 }
 CODE_PATHS = {
-    "preprocess": ["preprocessing/loader.py", "preprocessing/normalizer.py", "preprocessing/english_contractions.py"],
-    "nlp": ["nlp/processor.py", "preprocessing/chunker.py"],
-    "aggregate": ["aggregation", "nlp/token_filter.py"],
+    "preprocess": [
+        "preprocessing/loader.py",
+        "preprocessing/normalizer.py",
+        "preprocessing/english_contractions.py",
+        "preprocessing/greek.py",
+        "text.py",
+    ],
+    "nlp": ["nlp/processor.py", "preprocessing/chunker.py", "languages/greek_lexicon.py", "text.py"],
+    "aggregate": ["aggregation", "nlp/token_filter.py", "text.py"],
     "reference": ["reference_frequency"],
     "grammar": ["grammar"],
     "ipa": ["pronunciation", "cache.py"],
@@ -34,7 +40,7 @@ CODE_PATHS = {
     "postprocess": ["postprocessing"],
     "validate": ["validation", "grammar/pos_mapping.py"],
     "export": ["export", "grammar/pos_mapping.py"],
-    "cards": ["cards", "translation/selection.py", "export"],
+    "cards": ["cards", "translation/selection.py", "export", "text.py"],
 }
 PACKAGES = {
     "preprocess": [],
@@ -99,6 +105,9 @@ class Pipeline:
             else []
         )
 
+    def greek_lexicon_path(self):
+        return self.cache / "kaikki" / "greek.sqlite" if self.config.language == "el" else None
+
     def resolve(self, name):
         return (self.base / name).resolve()
 
@@ -153,6 +162,9 @@ class Pipeline:
                 if dictionary.is_file()
                 else "missing",
             }
+        if lexicon := self.greek_lexicon_path():
+            revision = (lexicon.stat().st_mtime_ns, lexicon.stat().st_size) if lexicon.is_file() else "missing"
+            configs["nlp"]["greek_lexicon"] = configs["grammar"]["greek_lexicon"] = revision
         if self.config.grammar.lexicon:
             path = Path(self.config.grammar.lexicon)
             configs["grammar"]["lexicon_hash"] = file_hash(path) if path.is_file() else "missing"
@@ -287,7 +299,8 @@ class Pipeline:
         elif stage == "nlp":
             from src.nlp.processor import run
 
-            run(self.outputs["preprocess"][0], out[0], cfg.nlp)
+            greek = {"lexicon_path": self.greek_lexicon_path()} if cfg.language == "el" else {}
+            run(self.outputs["preprocess"][0], out[0], cfg.nlp, **greek)
         elif stage == "aggregate":
             from src.aggregation.aggregator import run
 
@@ -303,7 +316,8 @@ class Pipeline:
         elif stage == "grammar":
             from src.grammar.enrichment import run
 
-            run(*self.outputs["postprocess"], *out, cfg.grammar, cfg.language)
+            greek = {"lexicon_path": self.greek_lexicon_path()} if cfg.language == "el" else {}
+            run(*self.outputs["postprocess"], *out, cfg.grammar, cfg.language, **greek)
         elif stage == "ipa":
             from src.pronunciation.service import run
 

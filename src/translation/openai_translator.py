@@ -12,7 +12,7 @@ from src.models import Translation
 from src.storage import canonical
 
 from .cache import cache_key
-from .prompts import EN_SYSTEM_PROMPT, SYSTEM_PROMPT
+from .prompts import system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,8 @@ class TranslationBatch(BaseModel):
 
 
 def parse_response(raw: str, expected: set[str], language="es") -> list[dict]:
-    batch = TranslationBatch.model_validate_json(raw) if language == "es" else None
+    # Every source language except English is translated into both Russian and English.
+    batch = TranslationBatch.model_validate_json(raw) if language != "en" else None
     entries = [r.model_dump() for r in batch.entries] if batch else json.loads(raw).get("entries", [])
     if language == "en" and (
         not isinstance(entries, list)
@@ -48,7 +49,7 @@ def parse_response(raw: str, expected: set[str], language="es") -> list[dict]:
         raise ValueError("Дублирующиеся translation IDs")
     if not set(ids) <= expected:
         raise ValueError("Неизвестные translation IDs")
-    if language == "es" and any(not r["ru"].strip() or not r["en"].strip() for r in entries):
+    if language != "en" and any(not r["ru"].strip() or not r["en"].strip() for r in entries):
         raise ValueError("Пустой перевод")
     return entries
 
@@ -68,7 +69,7 @@ class OpenAITranslator:
             model=self.config.model,
             store=False,
             input=[
-                {"role": "system", "content": EN_SYSTEM_PROMPT if self.language == "en" else SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt(self.language)},
                 {"role": "user", "content": canonical(entries)},
             ],
             text={
@@ -77,7 +78,7 @@ class OpenAITranslator:
                     "name": "dictionary_translations",
                     "strict": True,
                     "schema": TranslationBatch.model_json_schema()
-                    if self.language == "es"
+                    if self.language != "en"
                     else {
                         "type": "object",
                         "additionalProperties": False,

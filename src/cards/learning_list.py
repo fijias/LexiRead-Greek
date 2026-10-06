@@ -4,7 +4,7 @@ from src.export.excel_exporter import KAIKKI_TRANSLATION_CREDIT, write_excel
 
 
 def list_filename(language):
-    return {"en": "english_list.xlsx", "es": "spanish_list.xlsx"}[language]
+    return {"en": "english_list.xlsx", "es": "spanish_list.xlsx", "el": "greek_list.xlsx"}[language]
 
 
 def render_learning_list(cards, target, cards_config, language="es", machine_translation=False):

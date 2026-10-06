@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from src.config import load_config
+from src.translation.download import editions_for_languages
 from src.translation.health import dictionary_is_healthy
 
 
@@ -22,8 +23,11 @@ def language_is_installed(root: Path, language: str) -> bool:
         editions = set(json.loads(metadata.read_text(encoding="utf-8")).get("editions", []))
     except (OSError, ValueError):
         return False
-    return (
-        "ru" in editions
-        and (language != "es" or "es" in editions)
-        and dictionary_is_healthy(cache / "kaikki" / "dictionary.sqlite")
+    if language == "el":
+        from src.languages import greek_lexicon
+
+        if not greek_lexicon.is_healthy(cache / "kaikki" / greek_lexicon.FILENAME):
+            return False
+    return editions_for_languages((language,)) <= editions and dictionary_is_healthy(
+        cache / "kaikki" / "dictionary.sqlite"
     )

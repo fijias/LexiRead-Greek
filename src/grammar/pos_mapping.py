@@ -18,7 +18,10 @@ POS_RU = {
 }
 
 MORPH = {
-    "Gender": {"Fem": "женский род", "Masc": "мужской род", "Com": "общий род"},
+    "Gender": {"Fem": "женский род", "Masc": "мужской род", "Neut": "средний род", "Com": "общий род"},
+    "Case": {"Nom": "именительный", "Gen": "родительный", "Acc": "винительный", "Voc": "звательный", "Dat": "дательный"},
+    "Aspect": {"Imp": "несовершенный вид", "Perf": "совершенный вид"},
+    "Voice": {"Act": "действительный залог", "Pass": "страдательный залог"},
     "Number": {"Sing": "единственное число", "Plur": "множественное число"},
     "Person": {"1": "1 лицо", "2": "2 лицо", "3": "3 лицо"},
     "Mood": {"Ind": "Indicativo", "Sub": "Subjuntivo", "Imp": "Imperativo", "Cnd": "Condicional"},
@@ -50,10 +53,20 @@ def parse_morph(raw):
     return dict(part.split("=", 1) for part in raw.split("|") if "=" in part)
 
 
-def format_morph(raw):
+# Spanish tense and mood names do not fit Greek verbs.
+GREEK_MORPH = {
+    **MORPH,
+    "Mood": {"Ind": "изъявительное", "Sub": "сослагательное", "Imp": "повелительное"},
+    "Tense": {"Pres": "настоящее", "Past": "прошедшее", "Fut": "будущее"},
+    "VerbForm": {**MORPH["VerbForm"], "Conv": "деепричастие"},
+}
+
+
+def format_morph(raw, language="es"):
+    names = GREEK_MORPH if language == "el" else MORPH
     result = []
     for key, values in parse_morph(raw).items():
         result.append(
-            " / ".join(MORPH.get(key, {}).get(value, f"{key}={value}") for value in values.split(","))
+            " / ".join(names.get(key, {}).get(value, f"{key}={value}") for value in values.split(","))
         )
     return ", ".join(result)

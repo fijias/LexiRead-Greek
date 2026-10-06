@@ -6,6 +6,7 @@
 /data/input/*
 !/data/input/demo_en.txt
 !/data/input/demo_es.txt
+!/data/input/demo_el.txt
 /logs/
 /outputs/word_list/
 /outputs/word_list_v2/
@@ -25,6 +26,7 @@ dist/
 *.xlsx
 !my_dictionary_en.xlsx
 !my_dictionary_es.xlsx
+!my_dictionary_el.xlsx
 *.msi
 *.exe
 *.dll
