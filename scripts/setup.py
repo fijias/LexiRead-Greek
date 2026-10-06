@@ -26,6 +26,7 @@ IMPORTS = [
     "pyarrow",
     "openpyxl",
     "docx",
+    "pypdf",
     "wordfreq",
     "openai",
     "httpx",

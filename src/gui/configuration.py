@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from src.config import Config, load_config
+from src.preprocessing.formats import SUPPORTED_SUFFIXES, suffix
 
 LANGUAGES = {"English": "en", "Español": "es", "Ελληνικά": "el"}
 # Languages installed on demand: (genitive, accusative, nominative, installer).
@@ -48,10 +49,10 @@ def valid_numeric_edit(value, maximum, decimal=False, minimum=0):
 
 def build_config(root, source, language, options):
     source = Path(source).expanduser().resolve()
-    if source.suffix.lower() != ".txt" or not source.is_file():
-        raise ValueError("Выберите существующий TXT-файл.")
+    if suffix(source) not in SUPPORTED_SUFFIXES or not source.is_file():
+        raise ValueError("Выберите существующий файл: " + ", ".join(s[1:].upper() for s in SUPPORTED_SUFFIXES) + ".")
     if source.stat().st_size == 0:
-        raise ValueError("Выбранный TXT-файл пуст.")
+        raise ValueError("Выбранный файл пуст.")
     if language not in LANGUAGES.values():
         raise ValueError("Выберите English, Español или Ελληνικά.")
     demo = root / "config" / f"demo_{language}.yaml"

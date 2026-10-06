@@ -23,6 +23,7 @@ from src.gui.configuration import LANGUAGES, OPTIONAL_LANGUAGES, build_config, s
 from src.gui.controller import Controller
 from src.gui.secrets import load_key, save_key
 from src.languages.installation import language_is_installed
+from src.preprocessing.formats import SUPPORTED_SUFFIXES
 
 
 # Все основные настройки внешнего вида собраны здесь. Меняйте палитру, шрифт,
@@ -625,7 +626,7 @@ class MainWindow(ctk.CTk):
 
         Краткая инструкция 
 
-        1. Выберите txt-файл (для тестового запуска уже выбран файл demo_el.txt)
+        1. Выберите файл книги или субтитров: TXT, EPUB, FB2, DOCX, PDF с текстом, SRT, VTT, ASS (для тестового запуска уже выбран файл demo_el.txt)
         2. Нажмите «Начать анализ».
         3. Откройте «Список слов», «Карточки», «Сводную таблицу» и «Папку с результатами»
 
@@ -893,12 +894,15 @@ class MainWindow(ctk.CTk):
         _focus_dialog_entry(win, entry)
 
     def browse(self):
-        # Открывает системный диалог выбора входного TXT-файла.
+        # Открывает системный диалог выбора книги или субтитров.
         path = filedialog.askopenfilename(
             parent=self,
             title="Выберите текст книги",
             initialdir=self.root / "data" / "input",
-            filetypes=[("Текстовые файлы", "*.txt")],
+            filetypes=[
+                ("Книги и субтитры", " ".join(f"*{s}" for s in SUPPORTED_SUFFIXES) + " *.fb2.zip"),
+                ("Все файлы", "*.*"),
+            ],
         )
         if path:
             self._set_source_path(path)

@@ -29,6 +29,7 @@ CODE_PATHS = {
         "preprocessing/normalizer.py",
         "preprocessing/english_contractions.py",
         "preprocessing/greek.py",
+        "preprocessing/formats.py",
         "text.py",
     ],
     "nlp": ["nlp/processor.py", "preprocessing/chunker.py", "languages/greek_lexicon.py", "text.py"],
@@ -43,7 +44,7 @@ CODE_PATHS = {
     "cards": ["cards", "translation/selection.py", "export", "text.py"],
 }
 PACKAGES = {
-    "preprocess": [],
+    "preprocess": ["pypdf", "python-docx"],
     "nlp": [
         "spacy",
         "spacy-transformers",
@@ -245,7 +246,7 @@ class Pipeline:
 
     def _run(self, stage, force=False, quiet_cached=False, before_run=None):
         if stage == "preprocess" and (not self.source or not self.source.is_file()):
-            raise ValueError("Укажите существующий UTF-8 TXT: preprocess book.txt")
+            raise ValueError("Укажите существующий файл книги: preprocess book.txt")
         configs, fingerprints = self.snapshots()
         for dependency in DEPENDENCIES[stage]:
             state, reason = self.manifest.status(dependency, configs, fingerprints, self.outputs)

@@ -8,6 +8,7 @@ from src.storage import atomic_path
 
 from .normalizer import normalize
 from .english_contractions import expand_contractions
+from .formats import read_source
 from .greek import normalize_greek
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def read_text_auto(source: Path, language: str = "es") -> tuple[str, str]:
 
 
 def run(source: Path, target: Path, config, language: str = "es"):
-    decoded, encoding = read_text_auto(source, language)
+    decoded, encoding = read_source(source, language, read_text_auto)
     text = normalize(decoded, config)
     if language == "en":
         text = expand_contractions(text)
@@ -53,4 +54,4 @@ def run(source: Path, target: Path, config, language: str = "es"):
         text = normalize_greek(text)
     with atomic_path(target) as tmp:
         tmp.write_text(text, encoding="utf-8")
-    logger.info("Исходный файл: %s; кодировка: %s; символов: %d", source, encoding, len(text))
+    logger.info("Исходный файл: %s; формат/кодировка: %s; символов: %d", source, encoding, len(text))

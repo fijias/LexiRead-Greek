@@ -24,6 +24,10 @@ LABELS = {
 
 
 def friendly_error(stage, exc):
+    from src.preprocessing.formats import SourceFormatError
+
+    if isinstance(exc, SourceFormatError):
+        return str(exc)
     if isinstance(exc, UnicodeError):
         return "Не удалось прочитать текст. Сохраните TXT в кодировке UTF-8."
     if stage == "nlp":
